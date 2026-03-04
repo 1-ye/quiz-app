@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商用密码题库 · 刷题系统</title>
+    <meta name="description" content="商用密码应用安全性评估从业人员考核题库刷题系统">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="密码题库">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">🔐</span>
+                <span class="logo-text">密码题库</span>
+            </div>
+            <button class="sidebar-close" id="sidebarClose">✕</button>
+        </div>
+        <ul class="nav-list">
+            <li class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">首页</span>
+            </li>
+            <li class="nav-item" data-page="practice">
+                <span class="nav-icon">📝</span>
+                <span class="nav-label">练习模式</span>
+            </li>
+            <li class="nav-item" data-page="exam">
+                <span class="nav-icon">🎯</span>
+                <span class="nav-label">模拟考试</span>
+            </li>
+            <li class="nav-item" data-page="wrong">
+                <span class="nav-icon">❌</span>
+                <span class="nav-label">错题本</span>
+            </li>
+            <li class="nav-item" data-page="favorites">
+                <span class="nav-icon">⭐</span>
+                <span class="nav-label">收藏夹</span>
+            </li>
+            <li class="nav-item" data-page="stats">
+                <span class="nav-icon">📈</span>
+                <span class="nav-label">统计分析</span>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <button class="btn-reset" id="btnResetAll" title="重置所有数据">
+                <span>🗑️</span> 重置数据
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索题目关键词..." />
+                <button class="search-btn" id="searchBtn">🔍</button>
+            </div>
+            <div class="topbar-right">
+                <span class="streak-badge" id="streakBadge" title="连续答对">🔥 0</span>
+            </div>
+        </header>
+
+        <!-- Page: Dashboard -->
+        <section class="page active" id="page-dashboard">
+            <div class="dashboard">
+                <h1 class="page-title">学习概览</h1>
+                <div class="stats-cards">
+                    <div class="stat-card stat-total">
+                        <div class="stat-number" id="statTotal">5075</div>
+                        <div class="stat-label">总题数</div>
+                        <div class="stat-sub" id="statDone">已做 0 题</div>
+                    </div>
+                    <div class="stat-card stat-correct">
+                        <div class="stat-number" id="statAccuracy">0%</div>
+                        <div class="stat-label">正确率</div>
+                        <div class="stat-sub" id="statCorrectCount">答对 0 题</div>
+                    </div>
+                    <div class="stat-card stat-wrong">
+                        <div class="stat-number" id="statWrongCount">0</div>
+                        <div class="stat-label">错题数</div>
+                        <div class="stat-sub">待巩固复习</div>
+                    </div>
+                    <div class="stat-card stat-fav">
+                        <div class="stat-number" id="statFavCount">0</div>
+                        <div class="stat-label">收藏数</div>
+                        <div class="stat-sub">重点标记</div>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <h2>学习进度</h2>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+
+                <h2>分类练习</h2>
+                <div class="category-cards">
+                    <div class="category-card" data-type="single" onclick="startPractice('single')">
+                        <div class="cat-icon">📋</div>
+                        <div class="cat-name">单项选择题</div>
+                        <div class="cat-count">1747 题</div>
+                        <div class="cat-progress"><span id="catSingleDone">0</span> 已做</div>
+                    </div>
+                    <div class="category-card" data-type="multi" onclick="startPractice('multi')">
+                        <div class="cat-icon">📑</div>
+                        <div class="cat-name">多项选择题</div>
+                        <div class="cat-count">1738 题</div>
+                        <div class="cat-progress"><span id="catMultiDone">0</span> 已做</div>
+                    </div>
+                    <div class="category-card" data-type="judge" onclick="startPractice('judge')">
+                        <div class="cat-icon">⚖️</div>
+                        <div class="cat-name">判断题</div>
+                        <div class="cat-count">1590 题</div>
+                        <div class="cat-progress"><span id="catJudgeDone">0</span> 已做</div>
+                    </div>
+                </div>
+
+                <h2>快捷操作</h2>
+                <div class="quick-actions">
+                    <button class="action-btn action-continue" onclick="continuePractice()">
+                        <span>▶️</span> 继续刷题
+                    </button>
+                    <button class="action-btn action-random" onclick="startPractice('all', 'random')">
+                        <span>🎲</span> 随机练习
+                    </button>
+                    <button class="action-btn action-exam" onclick="showPage('exam')">
+                        <span>🎯</span> 模拟考试
+                    </button>
+                    <button class="action-btn action-wrong" onclick="startWrongPractice()">
+                        <span>🔄</span> 错题重练
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page: Practice -->
+        <section class="page" id="page-practice">
+            <div class="practice-container">
+                <div class="practice-header">
+                    <div class="practice-info">
+                        <span class="practice-type" id="practiceType">练习模式</span>
+                        <span class="practice-progress" id="practiceProgress">1 / 100</span>
+                    </div>
+                    <div class="practice-actions">
+                        <button class="icon-btn" id="btnFav" onclick="toggleFavorite()" title="收藏">☆</button>
+                        <button class="icon-btn" onclick="showAnswerCard()" title="答题卡">📋</button>
+                        <button class="icon-btn" onclick="showPage('dashboard')" title="退出">✕</button>
+                    </div>
+                </div>
+
+                <div class="question-card" id="questionCard">
+                    <div class="question-type-badge" id="qTypeBadge">单选</div>
+                    <div class="question-text" id="qText"></div>
+                    <div class="options-list" id="optionsList"></div>
+                    <div class="question-result" id="qResult" style="display:none">
+                        <div class="result-icon" id="resultIcon"></div>
+                        <div class="result-text" id="resultText"></div>
+                        <div class="result-answer" id="resultAnswer"></div>
+                        <div class="result-analysis" id="resultAnalysis"></div>
+                    </div>
+                </div>
+
+                <div class="practice-nav">
+                    <button class="nav-btn" id="btnPrev" onclick="prevQuestion()">← 上一题</button>
+                    <button class="nav-btn btn-submit" id="btnSubmit" onclick="submitAnswer()">确认提交</button>
+                    <button class="nav-btn" id="btnNext" onclick="nextQuestion()">下一题 →</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page: Exam -->
+        <section class="page" id="page-exam">
+            <div class="exam-container">
+                <!-- Exam Setup -->
+                <div class="exam-setup" id="examSetup">
+                    <h1 class="page-title">🎯 模拟考试</h1>
+                    <div class="exam-config">
+                        <div class="config-item">
+                            <label>题目数量</label>
+                            <div class="config-options">
+                                <button class="config-btn active" data-count="50">50题</button>
+                                <button class="config-btn" data-count="100">100题</button>
+                                <button class="config-btn" data-count="150">150题</button>
+                                <button class="config-btn" data-count="200">200题</button>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>考试时间</label>
+                            <div class="config-options">
+                                <button class="config-btn" data-time="30">30分钟</button>
+                                <button class="config-btn active" data-time="60">60分钟</button>
+                                <button class="config-btn" data-time="90">90分钟</button>
+                                <button class="config-btn" data-time="120">120分钟</button>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>题型范围</label>
+                            <div class="config-options">
+                                <button class="config-btn active" data-etype="all">全部</button>
+                                <button class="config-btn" data-etype="single">仅单选</button>
+                                <button class="config-btn" data-etype="multi">仅多选</button>
+                                <button class="config-btn" data-etype="judge">仅判断</button>
+                            </div>
+                        </div>
+                        <button class="btn-start-exam" onclick="startExam()">开始考试</button>
+                    </div>
+                </div>
+                <!-- Exam In Progress -->
+                <div class="exam-progress" id="examProgress" style="display:none">
+                    <div class="exam-topbar">
+                        <span class="exam-timer" id="examTimer">60:00</span>
+                        <span class="exam-count" id="examCount">1/100</span>
+                        <button class="btn-finish" onclick="finishExam()">交卷</button>
+                    </div>
+                    <div class="question-card" id="examQuestionCard">
+                        <div class="question-type-badge" id="examQTypeBadge">单选</div>
+                        <div class="question-text" id="examQText"></div>
+                        <div class="options-list" id="examOptionsList"></div>
+                    </div>
+                    <div class="practice-nav">
+                        <button class="nav-btn" onclick="examPrev()">← 上一题</button>
+                        <button class="nav-btn" onclick="showExamCard()">📋 答题卡</button>
+                        <button class="nav-btn" onclick="examNext()">下一题 →</button>
+                    </div>
+                </div>
+                <!-- Exam Result -->
+                <div class="exam-result" id="examResult" style="display:none">
+                    <div class="result-header">
+                        <h1>考试结果</h1>
+                    </div>
+                    <div class="result-score-circle">
+                        <svg viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" class="circle-bg" />
+                            <circle cx="60" cy="60" r="54" class="circle-fg" id="scoreCircle" />
+                        </svg>
+                        <div class="score-value" id="scoreValue">0</div>
+                        <div class="score-label">分</div>
+                    </div>
+                    <div class="result-details">
+                        <div class="detail-item"><span>总题数</span><span id="examTotalQ">0</span></div>
+                        <div class="detail-item correct"><span>正确</span><span id="examCorrectQ">0</span></div>
+                        <div class="detail-item wrong"><span>错误</span><span id="examWrongQ">0</span></div>
+                        <div class="detail-item"><span>未答</span><span id="examSkipQ">0</span></div>
+                        <div class="detail-item"><span>用时</span><span id="examUsedTime">0</span></div>
+                    </div>
+                    <div class="result-actions">
+                        <button class="action-btn" onclick="reviewExam()">📖 查看解析</button>
+                        <button class="action-btn" onclick="retakeExam()">🔄 重新考试</button>
+                        <button class="action-btn" onclick="showPage('dashboard')">🏠 返回首页</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page: Wrong -->
+        <section class="page" id="page-wrong">
+            <div class="list-container">
+                <div class="list-header">
+                    <h1 class="page-title">❌ 错题本</h1>
+                    <div class="list-actions">
+                        <span class="list-count" id="wrongCount">0 题</span>
+                        <button class="action-btn small" onclick="startWrongPractice()">🔄 错题重练</button>
+                        <button class="action-btn small danger" onclick="clearWrong()">🗑️ 清空</button>
+                    </div>
+                </div>
+                <div class="question-list" id="wrongList"></div>
+            </div>
+        </section>
+
+        <!-- Page: Favorites -->
+        <section class="page" id="page-favorites">
+            <div class="list-container">
+                <div class="list-header">
+                    <h1 class="page-title">⭐ 收藏夹</h1>
+                    <div class="list-actions">
+                        <span class="list-count" id="favCount">0 题</span>
+                        <button class="action-btn small" onclick="startFavPractice()">📝 收藏练习</button>
+                    </div>
+                </div>
+                <div class="question-list" id="favList"></div>
+            </div>
+        </section>
+
+        <!-- Page: Stats -->
+        <section class="page" id="page-stats">
+            <div class="stats-container">
+                <h1 class="page-title">📈 统计分析</h1>
+                <div class="chart-section">
+                    <h2>各题型正确率</h2>
+                    <div class="bar-chart" id="typeAccuracyChart"></div>
+                </div>
+                <div class="chart-section">
+                    <h2>近7日做题量</h2>
+                    <div class="bar-chart" id="dailyChart"></div>
+                </div>
+                <div class="chart-section">
+                    <h2>做题详情</h2>
+                    <div class="stats-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>题型</th>
+                                    <th>总数</th>
+                                    <th>已做</th>
+                                    <th>正确</th>
+                                    <th>正确率</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page: Search Results -->
+        <section class="page" id="page-search">
+            <div class="list-container">
+                <div class="list-header">
+                    <h1 class="page-title">🔍 搜索结果</h1>
+                    <span class="list-count" id="searchCount">0 条结果</span>
+                </div>
+                <div class="question-list" id="searchList"></div>
+            </div>
+        </section>
+
+        <!-- Modal: Answer Card -->
+        <div class="modal-overlay" id="answerCardModal" style="display:none">
+            <div class="modal-content answer-card-modal">
+                <div class="modal-header">
+                    <h2>答题卡</h2>
+                    <button class="modal-close" onclick="closeModal('answerCardModal')">✕</button>
+                </div>
+                <div class="answer-card-grid" id="answerCardGrid"></div>
+                <div class="answer-card-legend">
+                    <span class="legend-item"><span class="dot dot-correct"></span>正确</span>
+                    <span class="legend-item"><span class="dot dot-wrong"></span>错误</span>
+                    <span class="legend-item"><span class="dot dot-current"></span>当前</span>
+                    <span class="legend-item"><span class="dot dot-unanswered"></span>未答</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="questions.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
