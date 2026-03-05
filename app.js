@@ -37,10 +37,20 @@ let selectedOptions = new Set();
 let isAnswered = false;
 let highlightedOptionIndex = -1;  // for arrow key navigation
 let lastInteractionWasTouch = false;  // track if last interaction was touch
+let lastTouchTime = 0;
 
 // Track actual touch vs mouse interactions
-document.addEventListener('touchstart', () => { lastInteractionWasTouch = true; }, { passive: true });
-document.addEventListener('mousedown', () => { lastInteractionWasTouch = false; });
+// On mobile, touchstart fires BEFORE mousedown, so we need to prevent mousedown from overriding
+document.addEventListener('touchstart', () => {
+    lastInteractionWasTouch = true;
+    lastTouchTime = Date.now();
+}, { passive: true });
+document.addEventListener('mousedown', () => {
+    // Ignore mousedown that follows a touch event within 500ms (mobile compatibility events)
+    if (Date.now() - lastTouchTime > 500) {
+        lastInteractionWasTouch = false;
+    }
+});
 
 // ===== EXAM STATE =====
 let examQuestions = [];
