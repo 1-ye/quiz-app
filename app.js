@@ -35,6 +35,8 @@ let practiceIndex = 0;      // current index in set
 let practiceMode = '';       // 'sequential', 'random', 'wrong', 'favorites', 'search', 'exam-review'
 let selectedOptions = new Set();
 let isAnswered = false;
+let highlightedOptionIndex = -1;  // for arrow key navigation
+let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 // ===== EXAM STATE =====
 let examQuestions = [];
@@ -178,6 +180,7 @@ function renderPracticeQuestion() {
     const q = practiceQuestions[practiceIndex];
     selectedOptions = new Set();
     isAnswered = !!state.answered[q.id];
+    highlightedOptionIndex = -1;
 
     document.getElementById('practiceProgress').textContent =
         `${practiceIndex + 1} / ${practiceQuestions.length}`;
@@ -225,7 +228,7 @@ function renderPracticeQuestion() {
     }
 }
 
-function selectOption(key, q) {
+function selectOption(key, q, fromTouch = false) {
     if (isAnswered) return;
 
     if (q.type === 'multi') {
@@ -239,10 +242,22 @@ function selectOption(key, q) {
         selectedOptions.add(key);
     }
 
+    // Update highlighted index
+    const q2 = practiceQuestions[practiceIndex];
+    if (q2) {
+        highlightedOptionIndex = q2.options.findIndex(o => o.key === key);
+    }
+
     // Update UI
     document.querySelectorAll('#optionsList .option-item').forEach(el => {
         el.classList.toggle('selected', selectedOptions.has(el.dataset.key));
     });
+    updateHighlightUI();
+
+    // Auto-submit for single-choice/judge on touch devices
+    if (isTouchDevice && q.type !== 'multi' && selectedOptions.size > 0) {
+        setTimeout(() => submitAnswer(), 150);
+    }
 }
 
 function submitAnswer() {
@@ -277,6 +292,16 @@ function submitAnswer() {
     showResult(q, isCorrect);
     document.getElementById('btnSubmit').style.display = 'none';
     document.getElementById('streakBadge').textContent = '🔥 ' + state.streak;
+
+    // Auto-advance to next question if correct
+    if (isCorrect && practiceIndex < practiceQuestions.length - 1) {
+        setTimeout(() => {
+            // Only advance if still on the same question (user might have manually navigated)
+            if (isAnswered && practiceQuestions[practiceIndex]?.id === q.id) {
+                nextQuestion();
+            }
+        }, 1000);
+    }
 }
 
 function showResult(q, isCorrect) {
@@ -826,17 +851,48 @@ document.addEventListener('keydown', (e) => {
     const activePage = document.querySelector('.page.active');
     if (!activePage) return;
 
+    // Ignore if typing in search input
+    if (document.activeElement?.tagName === 'INPUT') return;
+
     if (activePage.id === 'page-practice') {
-        if (e.key === 'ArrowLeft') prevQuestion();
-        else if (e.key === 'ArrowRight') nextQuestion();
-        else if (e.key === 'Enter') {
+        const q = practiceQuestions[practiceIndex];
+        if (!q) return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            prevQuestion();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nextQuestion();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!isAnswered) {
+                highlightedOptionIndex = Math.min(highlightedOptionIndex + 1, q.options.length - 1);
+                // Select the highlighted option
+                const opt = q.options[highlightedOptionIndex];
+                if (opt) selectOptionByKey(opt.key);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!isAnswered) {
+                highlightedOptionIndex = Math.max(highlightedOptionIndex - 1, 0);
+                // Select the highlighted option
+                const opt = q.options[highlightedOptionIndex];
+                if (opt) selectOptionByKey(opt.key);
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
             if (!isAnswered) submitAnswer();
             else nextQuestion();
+        } else if (['a', 'A', '1'].includes(e.key)) {
+            selectOptionByKey('A');
+        } else if (['b', 'B', '2'].includes(e.key)) {
+            selectOptionByKey('B');
+        } else if (['c', 'C', '3'].includes(e.key)) {
+            selectOptionByKey('C');
+        } else if (['d', 'D', '4'].includes(e.key)) {
+            selectOptionByKey('D');
         }
-        else if (['a', 'A', '1'].includes(e.key)) selectOptionByKey('A');
-        else if (['b', 'B', '2'].includes(e.key)) selectOptionByKey('B');
-        else if (['c', 'C', '3'].includes(e.key)) selectOptionByKey('C');
-        else if (['d', 'D', '4'].includes(e.key)) selectOptionByKey('D');
     } else if (activePage.id === 'page-exam' && document.getElementById('examProgress').style.display !== 'none') {
         if (e.key === 'ArrowLeft') examPrev();
         else if (e.key === 'ArrowRight') examNext();
@@ -849,6 +905,13 @@ function selectOptionByKey(key) {
     if (!q) return;
     if (!q.options.find(o => o.key === key)) return;
     selectOption(key, q);
+}
+
+// Update highlight visual for arrow-key selected option
+function updateHighlightUI() {
+    document.querySelectorAll('#optionsList .option-item').forEach((el, i) => {
+        el.classList.toggle('highlighted', i === highlightedOptionIndex);
+    });
 }
 
 // ===== SWIPE GESTURE SUPPORT =====
