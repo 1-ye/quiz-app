@@ -850,3 +850,173 @@ function selectOptionByKey(key) {
     if (!q.options.find(o => o.key === key)) return;
     selectOption(key, q);
 }
+
+// ===== SWIPE GESTURE SUPPORT =====
+(function initSwipeGestures() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let isSwiping = false;
+    const SWIPE_THRESHOLD = 50;  // minimum px to trigger swipe
+    const SWIPE_MAX_Y = 80;     // max vertical movement allowed
+
+    function getSwipeTarget() {
+        const activePage = document.querySelector('.page.active');
+        if (!activePage) return null;
+        if (activePage.id === 'page-practice') return 'practice';
+        if (activePage.id === 'page-exam' && document.getElementById('examProgress').style.display !== 'none') return 'exam';
+        return null;
+    }
+
+    function getQuestionCard(target) {
+        if (target === 'practice') return document.getElementById('questionCard');
+        if (target === 'exam') return document.getElementById('examQuestionCard');
+        return null;
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        const target = getSwipeTarget();
+        if (!target) return;
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+        isSwiping = true;
+
+        const card = getQuestionCard(target);
+        if (card) {
+            card.style.transition = 'none';
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        const target = getSwipeTarget();
+        if (!target) return;
+
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = Math.abs(touchEndY - touchStartY);
+
+        // Only apply visual feedback if horizontal swipe
+        if (diffY < SWIPE_MAX_Y) {
+            const card = getQuestionCard(target);
+            if (card) {
+                const translateX = Math.max(-100, Math.min(100, diffX * 0.3));
+                const opacity = 1 - Math.abs(translateX) / 300;
+                card.style.transform = `translateX(${translateX}px)`;
+                card.style.opacity = opacity;
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+
+        const target = getSwipeTarget();
+        if (!target) return;
+
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = Math.abs(touchEndY - touchStartY);
+
+        const card = getQuestionCard(target);
+
+        // Reset card transform with animation
+        if (card) {
+            card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            card.style.transform = '';
+            card.style.opacity = '';
+        }
+
+        // Check if it's a valid horizontal swipe
+        if (Math.abs(diffX) > SWIPE_THRESHOLD && diffY < SWIPE_MAX_Y) {
+            if (diffX < 0) {
+                // Swipe left → next question
+                if (target === 'practice') {
+                    // Add slide-out-left animation
+                    if (card) {
+                        card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                        card.style.transform = 'translateX(-60px)';
+                        card.style.opacity = '0';
+                        setTimeout(() => {
+                            nextQuestion();
+                            card.style.transition = 'none';
+                            card.style.transform = 'translateX(60px)';
+                            card.style.opacity = '0';
+                            requestAnimationFrame(() => {
+                                card.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                                card.style.transform = '';
+                                card.style.opacity = '';
+                            });
+                        }, 200);
+                    } else {
+                        nextQuestion();
+                    }
+                } else if (target === 'exam') {
+                    if (card) {
+                        card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                        card.style.transform = 'translateX(-60px)';
+                        card.style.opacity = '0';
+                        setTimeout(() => {
+                            examNext();
+                            card.style.transition = 'none';
+                            card.style.transform = 'translateX(60px)';
+                            card.style.opacity = '0';
+                            requestAnimationFrame(() => {
+                                card.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                                card.style.transform = '';
+                                card.style.opacity = '';
+                            });
+                        }, 200);
+                    } else {
+                        examNext();
+                    }
+                }
+            } else {
+                // Swipe right → previous question
+                if (target === 'practice') {
+                    if (card) {
+                        card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                        card.style.transform = 'translateX(60px)';
+                        card.style.opacity = '0';
+                        setTimeout(() => {
+                            prevQuestion();
+                            card.style.transition = 'none';
+                            card.style.transform = 'translateX(-60px)';
+                            card.style.opacity = '0';
+                            requestAnimationFrame(() => {
+                                card.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                                card.style.transform = '';
+                                card.style.opacity = '';
+                            });
+                        }, 200);
+                    } else {
+                        prevQuestion();
+                    }
+                } else if (target === 'exam') {
+                    if (card) {
+                        card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                        card.style.transform = 'translateX(60px)';
+                        card.style.opacity = '0';
+                        setTimeout(() => {
+                            examPrev();
+                            card.style.transition = 'none';
+                            card.style.transform = 'translateX(-60px)';
+                            card.style.opacity = '0';
+                            requestAnimationFrame(() => {
+                                card.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                                card.style.transform = '';
+                                card.style.opacity = '';
+                            });
+                        }, 200);
+                    } else {
+                        examPrev();
+                    }
+                }
+            }
+        }
+    }, { passive: true });
+})();
