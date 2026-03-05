@@ -36,7 +36,11 @@ let practiceMode = '';       // 'sequential', 'random', 'wrong', 'favorites', 's
 let selectedOptions = new Set();
 let isAnswered = false;
 let highlightedOptionIndex = -1;  // for arrow key navigation
-let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+let lastInteractionWasTouch = false;  // track if last interaction was touch
+
+// Track actual touch vs mouse interactions
+document.addEventListener('touchstart', () => { lastInteractionWasTouch = true; }, { passive: true });
+document.addEventListener('mousedown', () => { lastInteractionWasTouch = false; });
 
 // ===== EXAM STATE =====
 let examQuestions = [];
@@ -254,8 +258,8 @@ function selectOption(key, q, fromTouch = false) {
     });
     updateHighlightUI();
 
-    // Auto-submit for single-choice/judge on touch devices
-    if (isTouchDevice && q.type !== 'multi' && selectedOptions.size > 0) {
+    // Auto-submit for single-choice/judge on actual touch interactions only
+    if (lastInteractionWasTouch && q.type !== 'multi' && selectedOptions.size > 0) {
         setTimeout(() => submitAnswer(), 150);
     }
 }
