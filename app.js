@@ -61,6 +61,7 @@ let examTimer = null;
 let examTimeLeft = 0;
 let examStartTime = 0;
 let examConfig = { singleCount: 60, multiCount: 60, judgeCount: 20, time: 90 };
+let examHighlightedOptionIndex = -1;  // for arrow key navigation in exam mode
 let importMode = 'merge'; // 'merge' or 'replace'
 
 // ===== INITIALIZATION =====
@@ -97,6 +98,16 @@ function showPage(pageName) {
     document.getElementById('sidebar').classList.remove('open');
 
     if (pageName === 'dashboard') updateDashboard();
+    else if (pageName === 'practice') {
+        // If no questions loaded, auto-start sequential practice
+        if (practiceQuestions.length === 0) {
+            practiceQuestions = [...QUESTIONS];
+            practiceIndex = state.lastPosition || 0;
+            practiceMode = 'sequential';
+            document.getElementById('practiceType').textContent = '顺序练习';
+            renderPracticeQuestion();
+        }
+    }
     else if (pageName === 'wrong') renderWrongList();
     else if (pageName === 'favorites') renderFavList();
     else if (pageName === 'stats') renderStats();
@@ -600,6 +611,7 @@ function updateTimerDisplay() {
 
 function renderExamQuestion() {
     const q = examQuestions[examIndex];
+    examHighlightedOptionIndex = -1;  // reset highlight on question change
     document.getElementById('examCount').textContent = `${examIndex + 1}/${examQuestions.length}`;
 
     const typeLabels = { single: '单选题', multi: '多选题', judge: '判断题' };
@@ -620,22 +632,32 @@ function renderExamQuestion() {
             <span class="option-text">${opt.text}</span>
         `;
         div.addEventListener('click', () => {
-            if (!examAnswers[examIndex]) examAnswers[examIndex] = new Set();
-            if (q.type === 'multi') {
-                if (examAnswers[examIndex].has(opt.key)) {
-                    examAnswers[examIndex].delete(opt.key);
-                } else {
-                    examAnswers[examIndex].add(opt.key);
-                }
-            } else {
-                examAnswers[examIndex] = new Set([opt.key]);
-            }
-            // Update UI
-            optList.querySelectorAll('.option-item').forEach(el => {
-                el.classList.toggle('selected', examAnswers[examIndex].has(el.dataset.key));
-            });
+            selectExamOption(opt.key);
         });
         optList.appendChild(div);
+    });
+}
+
+function selectExamOption(key) {
+    const q = examQuestions[examIndex];
+    if (!q) return;
+    if (!examAnswers[examIndex]) examAnswers[examIndex] = new Set();
+    if (q.type === 'multi') {
+        if (examAnswers[examIndex].has(key)) {
+            examAnswers[examIndex].delete(key);
+        } else {
+            examAnswers[examIndex].add(key);
+        }
+    } else {
+        examAnswers[examIndex] = new Set([key]);
+    }
+    // Update highlighted index
+    examHighlightedOptionIndex = q.options.findIndex(o => o.key === key);
+    // Update UI
+    const optList = document.getElementById('examOptionsList');
+    optList.querySelectorAll('.option-item').forEach((el, i) => {
+        el.classList.toggle('selected', examAnswers[examIndex].has(el.dataset.key));
+        el.classList.toggle('highlighted', i === examHighlightedOptionIndex);
     });
 }
 
@@ -993,6 +1015,9 @@ function initResetButton() {
         if (confirm('确定重置所有学习数据？此操作不可恢复！')) {
             state = defaultState();
             saveState();
+            // Clear practice state so it re-initializes on next visit
+            practiceQuestions = [];
+            practiceIndex = 0;
             updateDashboard();
             showPage('dashboard');
         }
@@ -1056,8 +1081,37 @@ document.addEventListener('keydown', (e) => {
             selectOptionByKey('D');
         }
     } else if (activePage.id === 'page-exam' && document.getElementById('examProgress').style.display !== 'none') {
-        if (e.key === 'ArrowLeft') examPrev();
-        else if (e.key === 'ArrowRight') examNext();
+        const eq = examQuestions[examIndex];
+        if (!eq) return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            examPrev();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            examNext();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            examHighlightedOptionIndex = Math.min(examHighlightedOptionIndex + 1, eq.options.length - 1);
+            const opt = eq.options[examHighlightedOptionIndex];
+            if (opt) selectExamOption(opt.key);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            examHighlightedOptionIndex = Math.max(examHighlightedOptionIndex - 1, 0);
+            const opt = eq.options[examHighlightedOptionIndex];
+            if (opt) selectExamOption(opt.key);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            examNext();
+        } else if (['a', 'A', '1'].includes(e.key)) {
+            if (eq.options.find(o => o.key === 'A')) selectExamOption('A');
+        } else if (['b', 'B', '2'].includes(e.key)) {
+            if (eq.options.find(o => o.key === 'B')) selectExamOption('B');
+        } else if (['c', 'C', '3'].includes(e.key)) {
+            if (eq.options.find(o => o.key === 'C')) selectExamOption('C');
+        } else if (['d', 'D', '4'].includes(e.key)) {
+            if (eq.options.find(o => o.key === 'D')) selectExamOption('D');
+        }
     }
 });
 
