@@ -13,7 +13,8 @@ function defaultState() {
         favorites: [],      // [questionId, ...]
         dailyStats: {},     // { '2025-01-01': { done: 10, correct: 8 } }
         lastPosition: 0,    // last practice index
-        streak: 0           // consecutive correct
+        streak: 0,          // consecutive correct
+        examHistory: []     // [{ date, score, totalScore, singleCorrect, singleTotal, multiCorrect, multiTotal, judgeCorrect, judgeTotal, usedTime, totalQuestions }, ...]
     };
 }
 
@@ -59,13 +60,13 @@ let examAnswers = {};  // { index: Set<option> }
 let examTimer = null;
 let examTimeLeft = 0;
 let examStartTime = 0;
-let examConfig = { count: 50, time: 60, type: 'all' };
+let examConfig = { singleCount: 60, multiCount: 60, judgeCount: 20, time: 90 };
+let importMode = 'merge'; // 'merge' or 'replace'
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initSearchbar();
-    initExamConfig();
     initResetButton();
     updateDashboard();
 });
@@ -538,43 +539,34 @@ function doSearch() {
 }
 
 // ===== EXAM MODE =====
-function initExamConfig() {
-    document.querySelectorAll('.config-options').forEach(group => {
-        group.querySelectorAll('.config-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                group.querySelectorAll('.config-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
-    });
-}
-
 function resetExamView() {
     document.getElementById('examSetup').style.display = 'block';
     document.getElementById('examProgress').style.display = 'none';
     document.getElementById('examResult').style.display = 'none';
     if (examTimer) { clearInterval(examTimer); examTimer = null; }
+    renderExamHistory();
 }
 
 function startExam() {
-    // Read config
-    const countBtn = document.querySelector('.config-btn.active[data-count]');
-    const timeBtn = document.querySelector('.config-btn.active[data-time]');
-    const typeBtn = document.querySelector('.config-btn.active[data-etype]');
-    examConfig.count = parseInt(countBtn?.dataset.count || 50);
-    examConfig.time = parseInt(timeBtn?.dataset.time || 60);
-    examConfig.type = typeBtn?.dataset.etype || 'all';
+    // Fixed exam structure: 60 single + 60 multi + 20 judge
+    const singlePool = QUESTIONS.filter(q => q.type === 'single');
+    const multiPool = QUESTIONS.filter(q => q.type === 'multi');
+    const judgePool = QUESTIONS.filter(q => q.type === 'judge');
 
-    // Build exam questions
-    let pool = [...QUESTIONS];
-    if (examConfig.type !== 'all') pool = pool.filter(q => q.type === examConfig.type);
-    shuffleArray(pool);
-    examQuestions = pool.slice(0, examConfig.count);
+    shuffleArray(singlePool);
+    shuffleArray(multiPool);
+    shuffleArray(judgePool);
+
+    const singleQs = singlePool.slice(0, examConfig.singleCount);
+    const multiQs = multiPool.slice(0, examConfig.multiCount);
+    const judgeQs = judgePool.slice(0, examConfig.judgeCount);
+
+    examQuestions = [...singleQs, ...multiQs, ...judgeQs];
     examIndex = 0;
     examAnswers = {};
     examStartTime = Date.now();
 
-    // Timer
+    // Timer - fixed 90 minutes
     examTimeLeft = examConfig.time * 60;
     updateTimerDisplay();
     if (examTimer) clearInterval(examTimer);
@@ -659,9 +651,17 @@ function finishExam() {
     if (examTimer) { clearInterval(examTimer); examTimer = null; }
 
     let correct = 0, wrong = 0, skipped = 0;
+    let singleCorrect = 0, singleTotal = 0;
+    let multiCorrect = 0, multiTotal = 0;
+    let judgeCorrect = 0, judgeTotal = 0;
     const usedTime = Math.round((Date.now() - examStartTime) / 1000);
 
     examQuestions.forEach((q, i) => {
+        // Count by type
+        if (q.type === 'single') singleTotal++;
+        else if (q.type === 'multi') multiTotal++;
+        else if (q.type === 'judge') judgeTotal++;
+
         const ans = examAnswers[i];
         if (!ans || ans.size === 0) {
             skipped++;
@@ -671,6 +671,9 @@ function finishExam() {
         const correctAns = q.answer.split('').sort().join('');
         if (selected === correctAns) {
             correct++;
+            if (q.type === 'single') singleCorrect++;
+            else if (q.type === 'multi') multiCorrect++;
+            else if (q.type === 'judge') judgeCorrect++;
             // Also record in global state
             state.answered[q.id] = { selected, correct: true };
             state.wrong = state.wrong.filter(id => id !== q.id);
@@ -687,19 +690,61 @@ function finishExam() {
         if (selected === correctAns) state.dailyStats[today].correct++;
     });
 
+    // Calculate score: single 0.5pt, multi 1pt, judge 0.5pt
+    const singleScore = singleCorrect * 0.5;
+    const multiScore = multiCorrect * 1;
+    const judgeScore = judgeCorrect * 0.5;
+    const totalScore = singleScore + multiScore + judgeScore;
+    const maxScore = 100; // 30 + 60 + 10
+
+    // Save exam result to history (including question IDs and user answers for later review)
+    const questionIds = examQuestions.map(q => q.id);
+    const savedAnswers = {};
+    examQuestions.forEach((q, i) => {
+        const ans = examAnswers[i];
+        if (ans && ans.size > 0) {
+            savedAnswers[i] = Array.from(ans).sort().join('');
+        }
+    });
+
+    const examRecord = {
+        date: new Date().toISOString(),
+        score: totalScore,
+        maxScore: maxScore,
+        singleCorrect, singleTotal,
+        multiCorrect, multiTotal,
+        judgeCorrect, judgeTotal,
+        usedTime,
+        totalQuestions: examQuestions.length,
+        correctCount: correct,
+        wrongCount: wrong,
+        skippedCount: skipped,
+        questionIds: questionIds,
+        userAnswers: savedAnswers
+    };
+    if (!state.examHistory) state.examHistory = [];
+    state.examHistory.unshift(examRecord); // newest first
+    // Keep max 50 records
+    if (state.examHistory.length > 50) state.examHistory = state.examHistory.slice(0, 50);
+
     saveState();
 
     // Show result
     const totalQ = examQuestions.length;
-    const score = Math.round((correct / totalQ) * 100);
+    const scorePercent = Math.round((totalScore / maxScore) * 100);
     document.getElementById('examProgress').style.display = 'none';
     document.getElementById('examResult').style.display = 'block';
 
-    document.getElementById('scoreValue').textContent = score;
+    document.getElementById('scoreValue').textContent = totalScore;
     document.getElementById('examTotalQ').textContent = totalQ;
     document.getElementById('examCorrectQ').textContent = correct;
     document.getElementById('examWrongQ').textContent = wrong;
     document.getElementById('examSkipQ').textContent = skipped;
+
+    // Score breakdown by type
+    document.getElementById('scoreSingle').textContent = `${singleCorrect}/${singleTotal} · ${singleScore}分`;
+    document.getElementById('scoreMulti').textContent = `${multiCorrect}/${multiTotal} · ${multiScore}分`;
+    document.getElementById('scoreJudge').textContent = `${judgeCorrect}/${judgeTotal} · ${judgeScore}分`;
 
     const mins = Math.floor(usedTime / 60);
     const secs = usedTime % 60;
@@ -708,7 +753,7 @@ function finishExam() {
     // Animate score circle
     const circle = document.getElementById('scoreCircle');
     const circumference = 2 * Math.PI * 54;
-    const offset = circumference - (score / 100) * circumference;
+    const offset = circumference - (scorePercent / 100) * circumference;
     // Add gradient to SVG
     const svg = circle.closest('svg');
     if (!svg.querySelector('defs')) {
@@ -729,12 +774,115 @@ function finishExam() {
     });
 }
 
+// ===== EXAM HISTORY =====
+function renderExamHistory() {
+    const list = document.getElementById('examHistoryList');
+    if (!list) return;
+
+    const history = state.examHistory || [];
+    if (history.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">暂无考试记录</div></div>';
+        return;
+    }
+
+    list.innerHTML = '';
+    history.forEach((record, idx) => {
+        const d = new Date(record.date);
+        const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+        const mins = Math.floor(record.usedTime / 60);
+        const secs = record.usedTime % 60;
+        const passClass = record.score >= 60 ? 'pass' : 'fail';
+        const hasDetail = record.questionIds && record.questionIds.length > 0;
+
+        const div = document.createElement('div');
+        div.className = `exam-history-item ${passClass}`;
+        div.innerHTML = `
+            <div class="eh-header">
+                <span class="eh-date">${dateStr}</span>
+                <span class="eh-score ${passClass}">${record.score}分</span>
+            </div>
+            <div class="eh-details">
+                <span>单选 ${record.singleCorrect}/${record.singleTotal}</span>
+                <span>多选 ${record.multiCorrect}/${record.multiTotal}</span>
+                <span>判断 ${record.judgeCorrect}/${record.judgeTotal}</span>
+                <span>用时 ${mins}分${secs}秒</span>
+            </div>
+            ${hasDetail ? `<div class="eh-actions">
+                <button class="eh-btn" onclick="viewHistoryExam(${idx}, 'all')">📖 查看全部</button>
+                <button class="eh-btn eh-btn-wrong" onclick="viewHistoryExam(${idx}, 'wrong')">❌ 只看错题</button>
+            </div>` : '<div class="eh-note">无详细记录</div>'}
+        `;
+        list.appendChild(div);
+    });
+}
+
 function reviewExam() {
     // Show exam questions in practice mode with answers revealed
     practiceQuestions = [...examQuestions];
     practiceIndex = 0;
     practiceMode = 'exam-review';
     document.getElementById('practiceType').textContent = '考试回顾';
+    showPage('practice');
+    renderPracticeQuestion();
+}
+
+function reviewExamWrong() {
+    // Show only incorrectly answered exam questions
+    const wrongQs = examQuestions.filter((q, i) => {
+        const ans = examAnswers[i];
+        if (!ans || ans.size === 0) return true; // unanswered = wrong
+        const selected = Array.from(ans).sort().join('');
+        const correctAns = q.answer.split('').sort().join('');
+        return selected !== correctAns;
+    });
+    if (wrongQs.length === 0) {
+        alert('恭喜，本次考试没有错题！');
+        return;
+    }
+    practiceQuestions = wrongQs;
+    practiceIndex = 0;
+    practiceMode = 'exam-review';
+    document.getElementById('practiceType').textContent = `错题回顾 (${wrongQs.length}题)`;
+    showPage('practice');
+    renderPracticeQuestion();
+}
+
+function viewHistoryExam(historyIndex, mode) {
+    const record = state.examHistory[historyIndex];
+    if (!record || !record.questionIds) {
+        alert('该记录无详细数据');
+        return;
+    }
+    
+    // Reconstruct questions from IDs
+    const questionMap = {};
+    QUESTIONS.forEach(q => questionMap[q.id] = q);
+    
+    const allQs = record.questionIds.map(id => questionMap[id]).filter(q => q);
+    
+    if (mode === 'wrong') {
+        // Filter to only wrong/unanswered questions
+        const wrongQs = allQs.filter((q, i) => {
+            const userAns = record.userAnswers[i];
+            if (!userAns) return true; // unanswered = wrong
+            const correctAns = q.answer.split('').sort().join('');
+            return userAns !== correctAns;
+        });
+        if (wrongQs.length === 0) {
+            alert('该次考试没有错题！');
+            return;
+        }
+        practiceQuestions = wrongQs;
+        document.getElementById('practiceType').textContent = `历史错题 (${wrongQs.length}题)`;
+    } else {
+        practiceQuestions = allQs;
+        const d = new Date(record.date);
+        const dateStr = `${(d.getMonth()+1)}/${d.getDate()} ${record.score}分`;
+        document.getElementById('practiceType').textContent = `历史回顾 ${dateStr}`;
+    }
+    
+    practiceIndex = 0;
+    practiceMode = 'exam-review';
     showPage('practice');
     renderPracticeQuestion();
 }
@@ -1097,3 +1245,155 @@ function updateHighlightUI() {
         }
     }, { passive: true });
 })();
+
+// ===== DATA SYNC =====
+function exportSyncData() {
+    try {
+        const data = JSON.stringify(state);
+        // Use base64 encoding with a prefix for identification
+        const encoded = 'QUIZ_SYNC_V1:' + btoa(unescape(encodeURIComponent(data)));
+        document.getElementById('exportCode').value = encoded;
+        document.getElementById('exportCodeArea').style.display = 'block';
+    } catch (e) {
+        alert('导出失败：' + e.message);
+    }
+}
+
+function copySyncCode() {
+    const textarea = document.getElementById('exportCode');
+    textarea.select();
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(textarea.value).then(() => {
+            showToast('已复制到剪贴板！');
+        }).catch(() => {
+            document.execCommand('copy');
+            showToast('已复制到剪贴板！');
+        });
+    } else {
+        document.execCommand('copy');
+        showToast('已复制到剪贴板！');
+    }
+}
+
+function setImportMode(mode) {
+    importMode = mode;
+    document.querySelectorAll('.import-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.textContent.includes(mode === 'merge' ? '合并' : '覆盖'));
+    });
+}
+
+function importSyncData() {
+    const code = document.getElementById('importCode').value.trim();
+    if (!code) {
+        alert('请先粘贴同步码');
+        return;
+    }
+
+    try {
+        let jsonStr;
+        if (code.startsWith('QUIZ_SYNC_V1:')) {
+            const b64 = code.substring('QUIZ_SYNC_V1:'.length);
+            jsonStr = decodeURIComponent(escape(atob(b64)));
+        } else {
+            // Try raw base64
+            jsonStr = decodeURIComponent(escape(atob(code)));
+        }
+
+        const importedState = JSON.parse(jsonStr);
+
+        if (importMode === 'replace') {
+            if (!confirm('覆盖模式会完全替换当前数据，确定继续？')) return;
+            state = { ...defaultState(), ...importedState };
+        } else {
+            // Merge mode
+            mergeState(importedState);
+        }
+
+        saveState();
+        updateDashboard();
+        showToast('数据导入成功！');
+        document.getElementById('importCode').value = '';
+    } catch (e) {
+        alert('同步码无效，请检查后重试\n错误：' + e.message);
+    }
+}
+
+function mergeState(imported) {
+    // Merge answered: keep the one where more questions are answered, prefer correct
+    if (imported.answered) {
+        Object.keys(imported.answered).forEach(qid => {
+            if (!state.answered[qid]) {
+                state.answered[qid] = imported.answered[qid];
+            }
+        });
+    }
+
+    // Merge wrong: union of both
+    if (imported.wrong) {
+        imported.wrong.forEach(id => {
+            if (!state.wrong.includes(id)) {
+                state.wrong.push(id);
+            }
+        });
+        // Remove from wrong if correctly answered in current state
+        state.wrong = state.wrong.filter(id => {
+            const ans = state.answered[id];
+            return !ans || !ans.correct;
+        });
+    }
+
+    // Merge favorites: union
+    if (imported.favorites) {
+        imported.favorites.forEach(id => {
+            if (!state.favorites.includes(id)) {
+                state.favorites.push(id);
+            }
+        });
+    }
+
+    // Merge dailyStats: sum up
+    if (imported.dailyStats) {
+        Object.keys(imported.dailyStats).forEach(date => {
+            if (!state.dailyStats[date]) {
+                state.dailyStats[date] = imported.dailyStats[date];
+            } else {
+                // Take the max values (more complete data)
+                state.dailyStats[date].done = Math.max(state.dailyStats[date].done, imported.dailyStats[date].done);
+                state.dailyStats[date].correct = Math.max(state.dailyStats[date].correct, imported.dailyStats[date].correct);
+            }
+        });
+    }
+
+    // Merge examHistory: combine, deduplicate by date, sort by date desc
+    if (imported.examHistory) {
+        const existingDates = new Set(state.examHistory.map(r => r.date));
+        imported.examHistory.forEach(record => {
+            if (!existingDates.has(record.date)) {
+                state.examHistory.push(record);
+            }
+        });
+        state.examHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Keep max 50
+        if (state.examHistory.length > 50) state.examHistory = state.examHistory.slice(0, 50);
+    }
+
+    // Take max streak
+    if (imported.streak > state.streak) {
+        state.streak = imported.streak;
+    }
+}
+
+function showToast(message) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}

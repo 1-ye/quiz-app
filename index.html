@@ -54,6 +54,10 @@
                 <span class="nav-icon">📈</span>
                 <span class="nav-label">统计分析</span>
             </li>
+            <li class="nav-item" data-page="sync">
+                <span class="nav-icon">🔄</span>
+                <span class="nav-label">数据同步</span>
+            </li>
         </ul>
         <div class="sidebar-footer">
             <button class="btn-reset" id="btnResetAll" title="重置所有数据">
@@ -116,19 +120,19 @@
                     <div class="category-card" data-type="single" onclick="startPractice('single')">
                         <div class="cat-icon">📋</div>
                         <div class="cat-name">单项选择题</div>
-                        <div class="cat-count">1747 题</div>
+                        <div class="cat-count">1746 题</div>
                         <div class="cat-progress"><span id="catSingleDone">0</span> 已做</div>
                     </div>
                     <div class="category-card" data-type="multi" onclick="startPractice('multi')">
                         <div class="cat-icon">📑</div>
                         <div class="cat-name">多项选择题</div>
-                        <div class="cat-count">1738 题</div>
+                        <div class="cat-count">1728 题</div>
                         <div class="cat-progress"><span id="catMultiDone">0</span> 已做</div>
                     </div>
                     <div class="category-card" data-type="judge" onclick="startPractice('judge')">
                         <div class="cat-icon">⚖️</div>
                         <div class="cat-name">判断题</div>
-                        <div class="cat-count">1590 题</div>
+                        <div class="cat-count">1601 题</div>
                         <div class="cat-progress"><span id="catJudgeDone">0</span> 已做</div>
                     </div>
                 </div>
@@ -193,34 +197,40 @@
                 <div class="exam-setup" id="examSetup">
                     <h1 class="page-title">🎯 模拟考试</h1>
                     <div class="exam-config">
-                        <div class="config-item">
-                            <label>题目数量</label>
-                            <div class="config-options">
-                                <button class="config-btn active" data-count="50">50题</button>
-                                <button class="config-btn" data-count="100">100题</button>
-                                <button class="config-btn" data-count="150">150题</button>
-                                <button class="config-btn" data-count="200">200题</button>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>考试时间</label>
-                            <div class="config-options">
-                                <button class="config-btn" data-time="30">30分钟</button>
-                                <button class="config-btn active" data-time="60">60分钟</button>
-                                <button class="config-btn" data-time="90">90分钟</button>
-                                <button class="config-btn" data-time="120">120分钟</button>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>题型范围</label>
-                            <div class="config-options">
-                                <button class="config-btn active" data-etype="all">全部</button>
-                                <button class="config-btn" data-etype="single">仅单选</button>
-                                <button class="config-btn" data-etype="multi">仅多选</button>
-                                <button class="config-btn" data-etype="judge">仅判断</button>
+                        <div class="exam-rules-card">
+                            <h3>📜 考试规则</h3>
+                            <div class="exam-rules-grid">
+                                <div class="rule-item">
+                                    <span class="rule-icon">📋</span>
+                                    <span class="rule-label">单选题</span>
+                                    <span class="rule-value">60题 × 0.5分 = 30分</span>
+                                </div>
+                                <div class="rule-item">
+                                    <span class="rule-icon">📑</span>
+                                    <span class="rule-label">多选题</span>
+                                    <span class="rule-value">60题 × 1分 = 60分</span>
+                                </div>
+                                <div class="rule-item">
+                                    <span class="rule-icon">⚖️</span>
+                                    <span class="rule-label">判断题</span>
+                                    <span class="rule-value">20题 × 0.5分 = 10分</span>
+                                </div>
+                                <div class="rule-divider"></div>
+                                <div class="rule-item rule-total">
+                                    <span class="rule-icon">📝</span>
+                                    <span class="rule-label">总计</span>
+                                    <span class="rule-value">140题 · 100分 · 90分钟</span>
+                                </div>
                             </div>
                         </div>
                         <button class="btn-start-exam" onclick="startExam()">开始考试</button>
+                        <!-- Exam History -->
+                        <div class="exam-history-section" id="examHistorySection">
+                            <h3>📊 历史考试记录</h3>
+                            <div class="exam-history-list" id="examHistoryList">
+                                <div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">暂无考试记录</div></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- Exam In Progress -->
@@ -261,8 +271,24 @@
                         <div class="detail-item"><span>未答</span><span id="examSkipQ">0</span></div>
                         <div class="detail-item"><span>用时</span><span id="examUsedTime">0</span></div>
                     </div>
+                    <div class="result-score-breakdown">
+                        <h3>分题型得分</h3>
+                        <div class="score-type-row">
+                            <span class="score-type-label">📋 单选题</span>
+                            <span class="score-type-detail" id="scoreSingle">0/60 · 0分</span>
+                        </div>
+                        <div class="score-type-row">
+                            <span class="score-type-label">📑 多选题</span>
+                            <span class="score-type-detail" id="scoreMulti">0/60 · 0分</span>
+                        </div>
+                        <div class="score-type-row">
+                            <span class="score-type-label">⚖️ 判断题</span>
+                            <span class="score-type-detail" id="scoreJudge">0/20 · 0分</span>
+                        </div>
+                    </div>
                     <div class="result-actions">
-                        <button class="action-btn" onclick="reviewExam()">📖 查看解析</button>
+                        <button class="action-btn" onclick="reviewExam()">📖 查看全部</button>
+                        <button class="action-btn" onclick="reviewExamWrong()">❌ 只看错题</button>
                         <button class="action-btn" onclick="retakeExam()">🔄 重新考试</button>
                         <button class="action-btn" onclick="showPage('dashboard')">🏠 返回首页</button>
                     </div>
@@ -327,6 +353,44 @@
                             <tbody id="statsTableBody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page: Data Sync -->
+        <section class="page" id="page-sync">
+            <div class="sync-container">
+                <h1 class="page-title">🔄 数据同步</h1>
+                <p class="sync-desc">通过同步码在不同设备间同步学习数据。导出数据生成同步码，在另一台设备粘贴导入即可。</p>
+                <div class="sync-section">
+                    <div class="sync-card">
+                        <h3>📤 导出数据</h3>
+                        <p>将当前设备的学习进度、错题记录、收藏和考试历史导出为同步码</p>
+                        <button class="sync-btn export" onclick="exportSyncData()">生成同步码</button>
+                        <div class="sync-code-area" id="exportCodeArea" style="display:none">
+                            <textarea id="exportCode" readonly rows="4"></textarea>
+                            <button class="sync-btn copy" onclick="copySyncCode()">📋 复制同步码</button>
+                        </div>
+                    </div>
+                    <div class="sync-card">
+                        <h3>📥 导入数据</h3>
+                        <p>粘贴从其他设备导出的同步码，将数据同步到当前设备</p>
+                        <div class="import-mode-tabs">
+                            <button class="import-tab active" onclick="setImportMode('merge')">合并数据</button>
+                            <button class="import-tab" onclick="setImportMode('replace')">覆盖数据</button>
+                        </div>
+                        <textarea id="importCode" rows="4" placeholder="在此粘贴同步码..."></textarea>
+                        <button class="sync-btn import" onclick="importSyncData()">导入数据</button>
+                    </div>
+                </div>
+                <div class="sync-info">
+                    <h3>💡 使用说明</h3>
+                    <ul>
+                        <li><strong>合并模式</strong>：保留本机数据，补充导入的数据（推荐）</li>
+                        <li><strong>覆盖模式</strong>：完全使用导入的数据替换本机数据</li>
+                        <li>同步码包含：学习记录、错题、收藏、考试历史</li>
+                        <li>可通过微信/QQ等工具将同步码发送到另一台设备</li>
+                    </ul>
                 </div>
             </div>
         </section>

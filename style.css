@@ -1327,6 +1327,433 @@ body {
 }
 
 /* ============================================
+   EXAM RULES CARD
+   ============================================ */
+.exam-rules-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.exam-rules-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.exam-rules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rule-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.rule-item.rule-total {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.08));
+    border-color: var(--accent-primary);
+}
+
+.rule-icon {
+    font-size: 1.2rem;
+    width: 28px;
+    text-align: center;
+}
+
+.rule-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-width: 60px;
+}
+
+.rule-value {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-left: auto;
+}
+
+.rule-item.rule-total .rule-value {
+    color: var(--accent-secondary);
+    font-weight: 600;
+}
+
+.rule-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+/* ============================================
+   EXAM SCORE BREAKDOWN
+   ============================================ */
+.result-score-breakdown {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.result-score-breakdown h3 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+
+.score-type-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+}
+
+.score-type-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.score-type-detail {
+    color: var(--accent-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* ============================================
+   EXAM HISTORY
+   ============================================ */
+.exam-history-section {
+    margin-top: 32px;
+}
+
+.exam-history-section h3 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.exam-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.exam-history-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    transition: var(--transition);
+}
+
+.exam-history-item:hover {
+    border-color: var(--accent-primary);
+}
+
+.exam-history-item.pass {
+    border-left: 3px solid var(--green);
+}
+
+.exam-history-item.fail {
+    border-left: 3px solid var(--red);
+}
+
+.eh-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.eh-date {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.eh-score {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.eh-score.pass {
+    color: var(--green);
+}
+
+.eh-score.fail {
+    color: var(--red);
+}
+
+.eh-details {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   EXAM HISTORY BUTTONS
+   ============================================ */
+.eh-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.eh-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--accent-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.eh-btn:hover {
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.eh-btn-wrong {
+    color: var(--red);
+}
+
+.eh-btn-wrong:hover {
+    border-color: var(--red);
+    background: var(--red-bg);
+}
+
+.eh-note {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ============================================
+   DATA SYNC PAGE
+   ============================================ */
+.sync-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.sync-desc {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+.sync-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.sync-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.sync-card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.sync-card p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.sync-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.sync-btn.export {
+    background: linear-gradient(135deg, var(--accent-primary), #7c3aed);
+    color: #fff;
+}
+
+.sync-btn.export:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+.sync-btn.copy {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-secondary);
+    margin-top: 10px;
+}
+
+.sync-btn.copy:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.sync-btn.import {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+}
+
+.sync-btn.import:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+.sync-code-area {
+    margin-top: 16px;
+}
+
+.sync-code-area textarea,
+#importCode {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    resize: vertical;
+    outline: none;
+    transition: var(--transition);
+    word-break: break-all;
+}
+
+.sync-code-area textarea:focus,
+#importCode:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.import-mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.import-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.import-tab.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--accent-secondary);
+    font-weight: 600;
+}
+
+.import-tab:hover:not(.active) {
+    background: var(--bg-card-hover);
+}
+
+.sync-info {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.sync-info h3 {
+    font-size: 1rem;
+    margin-bottom: 14px;
+    color: var(--text-primary);
+}
+
+.sync-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sync-info li {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 6px 0;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.5;
+}
+
+.sync-info li::before {
+    content: '•';
+    position: absolute;
+    left: 6px;
+    color: var(--accent-primary);
+}
+
+.sync-info li strong {
+    color: var(--text-primary);
+}
+
+/* ============================================
+   TOAST NOTIFICATION
+   ============================================ */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: linear-gradient(135deg, var(--accent-primary), #7c3aed);
+    color: #fff;
+    padding: 12px 28px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    z-index: 999;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
    RESPONSIVE
    ============================================ */
 @media (max-width: 768px) {
