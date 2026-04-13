@@ -182,6 +182,11 @@ function startWrongPractice() {
     }
     const qs = state.wrong.map(id => QUESTIONS.find(q => q.id === id)).filter(Boolean);
     shuffleArray(qs);
+    // Clear previous answers so users can re-do the questions
+    qs.forEach(q => {
+        delete state.answered[q.id];
+    });
+    saveState();
     practiceQuestions = qs;
     practiceIndex = 0;
     practiceMode = 'wrong';
@@ -218,17 +223,34 @@ function renderPracticeQuestion() {
     // Render options
     const optList = document.getElementById('optionsList');
     optList.innerHTML = '';
-    q.options.forEach(opt => {
-        const div = document.createElement('div');
-        div.className = 'option-item';
-        div.dataset.key = opt.key;
-        div.innerHTML = `
-            <span class="option-key">${opt.key}</span>
-            <span class="option-text">${opt.text}</span>
-        `;
-        div.addEventListener('click', () => selectOption(opt.key, q));
-        optList.appendChild(div);
-    });
+    if (q.type === 'judge') {
+        // Filter out empty "/" placeholder options for judge questions
+        const judgeOpts = q.options.filter(opt => opt.text && opt.text.trim() !== '/' && opt.text.trim() !== '');
+        judgeOpts.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'option-item';
+            div.dataset.key = opt.key;
+            div.innerHTML = `
+                <span class="option-key">${opt.key}</span>
+                <span class="option-text">${opt.text}</span>
+            `;
+            div.addEventListener('click', () => selectOption(opt.key, q));
+            optList.appendChild(div);
+        });
+    } else {
+        optList.classList.remove('judge-options');
+        q.options.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'option-item';
+            div.dataset.key = opt.key;
+            div.innerHTML = `
+                <span class="option-key">${opt.key}</span>
+                <span class="option-text">${opt.text}</span>
+            `;
+            div.addEventListener('click', () => selectOption(opt.key, q));
+            optList.appendChild(div);
+        });
+    }
 
     // If already answered, show result
     if (isAnswered) {
@@ -623,19 +645,38 @@ function renderExamQuestion() {
 
     const currentAns = examAnswers[examIndex] || new Set();
 
-    q.options.forEach(opt => {
-        const div = document.createElement('div');
-        div.className = 'option-item' + (currentAns.has(opt.key) ? ' selected' : '');
-        div.dataset.key = opt.key;
-        div.innerHTML = `
-            <span class="option-key">${opt.key}</span>
-            <span class="option-text">${opt.text}</span>
-        `;
-        div.addEventListener('click', () => {
-            selectExamOption(opt.key);
+    if (q.type === 'judge') {
+        // Filter out empty "/" placeholder options for judge questions
+        const judgeExamOpts = q.options.filter(opt => opt.text && opt.text.trim() !== '/' && opt.text.trim() !== '');
+        judgeExamOpts.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'option-item' + (currentAns.has(opt.key) ? ' selected' : '');
+            div.dataset.key = opt.key;
+            div.innerHTML = `
+                <span class="option-key">${opt.key}</span>
+                <span class="option-text">${opt.text}</span>
+            `;
+            div.addEventListener('click', () => {
+                selectExamOption(opt.key);
+            });
+            optList.appendChild(div);
         });
-        optList.appendChild(div);
-    });
+    } else {
+        optList.classList.remove('judge-options');
+        q.options.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'option-item' + (currentAns.has(opt.key) ? ' selected' : '');
+            div.dataset.key = opt.key;
+            div.innerHTML = `
+                <span class="option-key">${opt.key}</span>
+                <span class="option-text">${opt.text}</span>
+            `;
+            div.addEventListener('click', () => {
+                selectExamOption(opt.key);
+            });
+            optList.appendChild(div);
+        });
+    }
 }
 
 function selectExamOption(key) {
