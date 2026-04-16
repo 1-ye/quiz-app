@@ -83,6 +83,7 @@
         <!-- Page: Dashboard -->
         <section class="page active" id="page-dashboard">
             <div class="dashboard">
+                <div class="daily-greeting" id="dailyGreeting"></div>
                 <h1 class="page-title">学习概览</h1>
                 <div class="stats-cards">
                     <div class="stat-card stat-total">
@@ -169,6 +170,8 @@
                         <button class="icon-btn" onclick="showPage('dashboard')" title="退出">✕</button>
                     </div>
                 </div>
+
+                <div class="practice-quote" id="practiceQuote"></div>
 
                 <div class="question-card" id="questionCard">
                     <div class="question-type-badge" id="qTypeBadge">单选</div>
@@ -263,6 +266,7 @@
                         </svg>
                         <div class="score-value" id="scoreValue">0</div>
                         <div class="score-label">分</div>
+                        <div class="exam-comment" id="examComment"></div>
                     </div>
                     <div class="result-details">
                         <div class="detail-item"><span>总题数</span><span id="examTotalQ">0</span></div>

@@ -63,6 +63,242 @@ let examStartTime = 0;
 let examConfig = { singleCount: 60, multiCount: 60, judgeCount: 20, time: 90 };
 let examHighlightedOptionIndex = -1;  // for arrow key navigation in exam mode
 let importMode = 'merge'; // 'merge' or 'replace'
+let wrongStreak = 0;  // consecutive wrong answers (session only, not persisted)
+
+// ===== MOTIVATIONAL QUOTES =====
+const STREAK_MILESTONES = {
+    5: [
+        { emoji: '🔥', title: '5 连对！', msg: '实力，是日复一日的坚持锻造的' },
+        { emoji: '🔥', title: '5 连对！', msg: '你的每一次正确，都不是偶然' },
+        { emoji: '🔥', title: '5 连对！', msg: '平时多流汗，考场少流泪' },
+    ],
+    10: [
+        { emoji: '🚀', title: '10 连对！', msg: '当别人还在犹豫时，你已经在路上了' },
+        { emoji: '🚀', title: '10 连对！', msg: '你的专注力，就是你最大的武器' },
+        { emoji: '🚀', title: '10 连对！', msg: '十道题的背后，是无数次的思考与沉淀' },
+    ],
+    20: [
+        { emoji: '⚡', title: '20 连对！', msg: '真正的强者，不是没有对手，而是不断超越自己' },
+        { emoji: '⚡', title: '20 连对！', msg: '这种稳定的输出能力，就是实力的证明' },
+        { emoji: '⚡', title: '20 连对！', msg: '你在这里做对的每一题，都是考场上的底气' },
+    ],
+    50: [
+        { emoji: '👑', title: '50 连对！', msg: '五十连对，这不是运气，是绝对的实力' },
+        { emoji: '👑', title: '50 连对！', msg: '你已经站在了大多数人到不了的高度' },
+        { emoji: '👑', title: '50 连对！', msg: '天赋决定上限，努力决定下限，你在拉高下限' },
+    ],
+    100: [
+        { emoji: '🏆', title: '100 连对！', msg: '一百连对，你就是传说本身' },
+        { emoji: '🏆', title: '100 连对！', msg: '这种境界，已经不是努力能解释的了' },
+        { emoji: '🏆', title: '100 连对！', msg: '你让不可能变成了可能' },
+    ],
+};
+
+const WRONG_STREAK_MILESTONES = {
+    3: [
+        { emoji: '💫', title: '别急', msg: '暴露问题，比掩盖问题更需要勇气' },
+        { emoji: '💫', title: '别急', msg: '敢于直面弱点的人，才有资格变强' },
+        { emoji: '💫', title: '别急', msg: '每一次跌倒，都是在为下一次飞跃蓄力' },
+        { emoji: '💫', title: '别急', msg: '现在的每一个错误，都是考场上的免疫力' },
+    ],
+    5: [
+        { emoji: '🌅', title: '稳住', msg: '低谷不是终点，而是反弹的起点' },
+        { emoji: '🌅', title: '稳住', msg: '正因为难，才值得去征服' },
+        { emoji: '🌅', title: '稳住', msg: '被打倒不丢人，站不起来才丢人' },
+        { emoji: '🌅', title: '稳住', msg: '把所有的错误都留在这里，考场上就不会再犯了' },
+    ],
+    8: [
+        { emoji: '🔥', title: '坚持', msg: '最深的夜，才能看到最亮的星' },
+        { emoji: '🔥', title: '坚持', msg: '每一个高手，都曾经历过这样的至暗时刻' },
+        { emoji: '🔥', title: '坚持', msg: '这些错题会成为你最终胜利的垫脚石' },
+        { emoji: '🔥', title: '坚持', msg: '困难只是暂时的，放弃才是永久的' },
+    ],
+};
+
+const DAILY_MILESTONES = {
+    10:  [
+        { emoji: '✨', title: '今日 10 题！', msg: '所有伟大的征程，都起始于第一步' },
+        { emoji: '✨', title: '今日 10 题！', msg: '开始行动的人，已经超越了大多数人' },
+    ],
+    30:  [
+        { emoji: '🔥', title: '今日 30 题！', msg: '你选择在这里拼搏的每一分钟，都在拉开与别人的距离' },
+        { emoji: '🔥', title: '今日 30 题！', msg: '持续前行的人，终会到达彼岸' },
+    ],
+    50:  [
+        { emoji: '💪', title: '今日 50 题！', msg: '半百之数，半是汗水，半是收获' },
+        { emoji: '💪', title: '今日 50 题！', msg: '当你觉得坚持不下去的时候，恰恰是进步最快的时候' },
+    ],
+    100: [
+        { emoji: '🏅', title: '今日百题！', msg: '别人在休息的时候，你在默默变强' },
+        { emoji: '🏅', title: '今日百题！', msg: '一百道题的重量，只有走过的人才懂' },
+    ],
+    150: [
+        { emoji: '⚡', title: '今日 150 题！', msg: '量变的积累，终将迎来质变的飞跃' },
+        { emoji: '⚡', title: '今日 150 题！', msg: '你的坚持，正在重新定义你的极限' },
+    ],
+    200: [
+        { emoji: '🌟', title: '今日 200 题！', msg: '能走到这里的人，已经不多了' },
+        { emoji: '🌟', title: '今日 200 题！', msg: '两百题的背后，是一个不甘平庸的灵魂' },
+    ],
+    250: [
+        { emoji: '🔥', title: '今日 250 题！', msg: '你的坚持，终将成就不凡的你' },
+        { emoji: '🔥', title: '今日 250 题！', msg: '这份毅力，比知识本身更有价值' },
+    ],
+    300: [
+        { emoji: '🚀', title: '今日 300 题！', msg: '三百题！势如破竹，无人能挡' },
+        { emoji: '🚀', title: '今日 300 题！', msg: '当你回头看今天，会感谢此刻拼搏的自己' },
+    ],
+    350: [
+        { emoji: '💎', title: '今日 350 题！', msg: '钻石般的意志力，注定不会平凡' },
+        { emoji: '💎', title: '今日 350 题！', msg: '你在做的事，大多数人坚持不了' },
+    ],
+    400: [
+        { emoji: '👑', title: '今日 400 题！', msg: '你的人生，由你自己定义' },
+        { emoji: '👑', title: '今日 400 题！', msg: '四百题！只有真正热爱的人才能到达这里' },
+    ],
+    450: [
+        { emoji: '⭐', title: '今日 450 题！', msg: '努力到无能为力，拼搏到感动自己' },
+        { emoji: '⭐', title: '今日 450 题！', msg: '你已经证明了自己的决心和毅力' },
+    ],
+    500: [
+        { emoji: '🏔️', title: '今日 500 题！', msg: '你正在攀登的高峰，终会成为脚下的平地' },
+        { emoji: '🏔️', title: '今日 500 题！', msg: '半千之数，此刻的你正在书写属于自己的传奇' },
+    ],
+    550: [
+        { emoji: '🔥', title: '今日 550 题！', msg: '你的努力终将照亮前方的路' },
+        { emoji: '🔥', title: '今日 550 题！', msg: '距离巅峰只有一步之遥，不要停下' },
+    ],
+    600: [
+        { emoji: '🏆', title: '今日 600 题！', msg: '六百题！今日之王！你的名字值得被记住' },
+        { emoji: '🏆', title: '今日 600 题！', msg: '这一刻，你就是最好的自己' },
+    ],
+};
+
+const DAILY_QUOTES = [
+    '当你能够意识到自己需要变强，才是变强的开始',
+    '种一棵树最好的时间是十年前，其次是现在',
+    '不积跬步，无以至千里',
+    '日拱一卒，功不唐捐',
+    '今天的刻苦学习，是为了明天的从容不迫',
+    '你所浪费的今天，是昨天逝去之人奢望的明天',
+    '真正的对手只有一个，就是昨天的自己',
+    '所有让你痛苦的事情，最终都会让你变强',
+    '知道不等于做到，做到不等于做好',
+    '你现在的努力，是在为未来的自己铺路',
+    '优秀不是一种行为，而是一种习惯',
+    '当你觉得为时已晚的时候，恰恰是最早的时候',
+    '每一个不曾起舞的日子，都是对生命的辜负',
+    '星光不负赶路人，时光不负有心人',
+    '越是黑暗的地方，越需要点亮自己',
+];
+
+const EXAM_COMMENTS = {
+    '90': [
+        '这份实力，足以征服任何考试',
+        '你已经站在了金字塔的顶端',
+        '所有的付出，都在这一刻得到了最好的回报',
+    ],
+    '80': [
+        '距离完美只差一步，那一步叫做细节',
+        '优秀不是终点，卓越才是目标',
+        '你的实力已经毋庸置疑',
+    ],
+    '70': [
+        '方向对了，只需要更多的打磨',
+        '潜力已经展现，突破只是时间问题',
+        '再往前一步，你就是优秀',
+    ],
+    '60': [
+        '及格线上的你，离优秀并不远',
+        '从这里开始发力，一切都来得及',
+        '知道了差距在哪里，就知道了进步的方向',
+    ],
+    '40': [
+        '认清差距，才是缩小差距的第一步',
+        '最好的查漏补缺，就在此刻',
+        '今天的失利，是明天逆袭的起点',
+    ],
+    '0': [
+        '万丈高楼平地起，基础决定高度',
+        '从零开始并不可怕，可怕的是从未开始',
+        '每一个高手都曾是新手，他们只是没有放弃',
+    ],
+};
+
+const WRONG_COMPLETE_MSGS = [
+    { emoji: '🎉', title: '错题全部消灭！', msg: '征服了所有错题，你已经不是刚才的你了' },
+    { emoji: '👏', title: '错题全部消灭！', msg: '每一道错题都被你踩在了脚下' },
+    { emoji: '💪', title: '错题全部消灭！', msg: '从跌倒的地方站起来，这就是成长' },
+    { emoji: '🌟', title: '错题全部消灭！', msg: '错题清零！你交上了一份完美的答卷' },
+];
+
+function getRandomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function showMilestoneBanner(emoji, title, msg, theme) {
+    // Remove existing banner
+    const existing = document.querySelector('.milestone-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = `milestone-overlay theme-${theme}`;
+    overlay.innerHTML = `
+        <div class="milestone-card">
+            <div class="milestone-emoji">${emoji}</div>
+            <div class="milestone-title">${title}</div>
+            <div class="milestone-msg">${msg}</div>
+        </div>
+    `;
+
+    overlay.addEventListener('click', () => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.remove(), 300);
+    });
+
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        if (document.body.contains(overlay)) {
+            overlay.classList.add('fade-out');
+            setTimeout(() => overlay.remove(), 300);
+        }
+    }, 2500);
+}
+
+function checkMilestones(isCorrect, todayDone) {
+    // Priority: wrong practice complete > streak > daily > wrong streak
+
+    // 1. Wrong practice completion
+    if (practiceMode === 'wrong' && practiceIndex === practiceQuestions.length - 1 && isAnswered) {
+        const item = getRandomItem(WRONG_COMPLETE_MSGS);
+        showMilestoneBanner(item.emoji, item.title, item.msg, 'complete');
+        return true;
+    }
+
+    // 2. Streak milestones
+    if (isCorrect && STREAK_MILESTONES[state.streak]) {
+        const item = getRandomItem(STREAK_MILESTONES[state.streak]);
+        showMilestoneBanner(item.emoji, item.title, item.msg, 'streak');
+        return true;
+    }
+
+    // 3. Daily milestones
+    if (DAILY_MILESTONES[todayDone]) {
+        const item = getRandomItem(DAILY_MILESTONES[todayDone]);
+        showMilestoneBanner(item.emoji, item.title, item.msg, 'daily');
+        return true;
+    }
+
+    // 4. Wrong streak
+    if (!isCorrect && WRONG_STREAK_MILESTONES[wrongStreak]) {
+        const item = getRandomItem(WRONG_STREAK_MILESTONES[wrongStreak]);
+        showMilestoneBanner(item.emoji, item.title, item.msg, 'encourage');
+        return true;
+    }
+
+    return false;
+}
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -144,6 +380,34 @@ function updateDashboard() {
     });
 
     document.getElementById('streakBadge').textContent = '🔥 ' + state.streak;
+
+    // Daily Greeting
+    const greetingEl = document.getElementById('dailyGreeting');
+    if (greetingEl) {
+        const hour = new Date().getHours();
+        let greeting, greetIcon;
+        if (hour >= 6 && hour < 12) { greeting = '早安！'; greetIcon = '☀️'; }
+        else if (hour >= 12 && hour < 18) { greeting = '下午好！'; greetIcon = '🌤️'; }
+        else if (hour >= 18 && hour < 24) { greeting = '晚上好！'; greetIcon = '🌙'; }
+        else { greeting = '夜深了，注意休息'; greetIcon = '🌃'; }
+
+        // Use date as seed for consistent daily quote
+        const today = new Date().toISOString().slice(0, 10);
+        const seed = today.split('-').reduce((a, b) => a + parseInt(b), 0);
+        const quote = DAILY_QUOTES[seed % DAILY_QUOTES.length];
+
+        const todayStats = state.dailyStats[today] || { done: 0, correct: 0 };
+        const todayAcc = todayStats.done > 0 ? Math.round((todayStats.correct / todayStats.done) * 100) : 0;
+
+        greetingEl.innerHTML = `
+            <div class="greeting-icon">${greetIcon}</div>
+            <div class="greeting-content">
+                <div class="greeting-text">${greeting}</div>
+                <div class="greeting-quote">"${quote}"</div>
+                <div class="greeting-stats">📊 今日已做 ${todayStats.done} 题${todayStats.done > 0 ? ` · 正确率 ${todayAcc}%` : ''}</div>
+            </div>
+        `;
+    }
 }
 
 // ===== PRACTICE MODE =====
@@ -274,6 +538,13 @@ function renderPracticeQuestion() {
         state.lastPosition = practiceIndex;
         saveState();
     }
+
+    // Update practice quote (rotates every 5 questions)
+    const quoteEl = document.getElementById('practiceQuote');
+    if (quoteEl) {
+        const quoteIndex = Math.floor(practiceIndex / 5) % DAILY_QUOTES.length;
+        quoteEl.textContent = DAILY_QUOTES[quoteIndex];
+    }
 }
 
 function selectOption(key, q, fromTouch = false) {
@@ -319,13 +590,15 @@ function submitAnswer() {
     // Record answer
     state.answered[q.id] = { selected, correct: isCorrect };
 
-    // Update wrong list
+    // Update wrong list & streaks
     if (!isCorrect) {
         if (!state.wrong.includes(q.id)) state.wrong.push(q.id);
         state.streak = 0;
+        wrongStreak++;
     } else {
         state.wrong = state.wrong.filter(id => id !== q.id);
         state.streak++;
+        wrongStreak = 0;
     }
 
     // Daily stats
@@ -341,13 +614,25 @@ function submitAnswer() {
     document.getElementById('btnSubmit').style.display = 'none';
     document.getElementById('streakBadge').textContent = '🔥 ' + state.streak;
 
+    // Check milestones (after a short delay so the result animation shows first)
+    setTimeout(() => {
+        checkMilestones(isCorrect, state.dailyStats[today].done);
+    }, 500);
+
     // Auto-advance to next question if correct
     if (isCorrect && practiceIndex < practiceQuestions.length - 1) {
         setTimeout(() => {
-            // Only advance if still on the same question (user might have manually navigated)
-            if (isAnswered && practiceQuestions[practiceIndex]?.id === q.id) {
-                nextQuestion();
-            }
+            // Wait for milestone banner to dismiss before advancing
+            const tryAdvance = () => {
+                if (document.querySelector('.milestone-overlay')) {
+                    setTimeout(tryAdvance, 500);
+                    return;
+                }
+                if (isAnswered && practiceQuestions[practiceIndex]?.id === q.id) {
+                    nextQuestion();
+                }
+            };
+            tryAdvance();
         }, 1000);
     }
 }
@@ -812,6 +1097,21 @@ function finishExam() {
     const mins = Math.floor(usedTime / 60);
     const secs = usedTime % 60;
     document.getElementById('examUsedTime').textContent = `${mins}分${secs}秒`;
+
+    // Exam comment based on score
+    const examCommentEl = document.getElementById('examComment');
+    if (examCommentEl) {
+        let commentGroup;
+        if (totalScore >= 90) commentGroup = EXAM_COMMENTS['90'];
+        else if (totalScore >= 80) commentGroup = EXAM_COMMENTS['80'];
+        else if (totalScore >= 70) commentGroup = EXAM_COMMENTS['70'];
+        else if (totalScore >= 60) commentGroup = EXAM_COMMENTS['60'];
+        else if (totalScore >= 40) commentGroup = EXAM_COMMENTS['40'];
+        else commentGroup = EXAM_COMMENTS['0'];
+        const comment = getRandomItem(commentGroup);
+        examCommentEl.textContent = comment;
+        examCommentEl.className = `exam-comment ${totalScore >= 60 ? 'pass' : 'fail'}`;
+    }
 
     // Animate score circle
     const circle = document.getElementById('scoreCircle');

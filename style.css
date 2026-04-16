@@ -578,6 +578,34 @@ body {
     background: var(--yellow-bg);
 }
 
+/* Practice Quote Bar */
+.practice-quote {
+    text-align: center;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--accent-secondary);
+    line-height: 1.5;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.06));
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    transition: opacity 0.4s ease;
+    min-height: 20px;
+}
+
+.practice-quote::before {
+    content: '\275D ';
+    color: var(--accent-primary);
+    opacity: 0.7;
+}
+
+.practice-quote::after {
+    content: ' \275E';
+    color: var(--accent-primary);
+    opacity: 0.7;
+}
+
 /* Question Card */
 .question-card {
     background: var(--bg-card);
@@ -1830,6 +1858,235 @@ body {
 .toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
+   MILESTONE BANNER
+   ============================================ */
+.milestone-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    animation: milestoneOverlayIn 0.3s ease;
+    cursor: pointer;
+}
+
+.milestone-overlay.fade-out {
+    animation: milestoneOverlayOut 0.3s ease forwards;
+}
+
+@keyframes milestoneOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes milestoneOverlayOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.milestone-card {
+    text-align: center;
+    padding: 44px 52px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: milestoneCardIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 420px;
+    width: 90%;
+    position: relative;
+    overflow: hidden;
+}
+
+.milestone-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--radius-lg);
+    padding: 2px;
+    background: linear-gradient(135deg, var(--milestone-color-1), var(--milestone-color-2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.milestone-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, var(--milestone-color-1), transparent 70%);
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+@keyframes milestoneCardIn {
+    from {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.milestone-emoji {
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+    animation: milestoneEmojiBounce 0.6s ease 0.2s both;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes milestoneEmojiBounce {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+.milestone-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--milestone-color-1), var(--milestone-color-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+.milestone-msg {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    position: relative;
+    z-index: 1;
+}
+
+/* Theme: Streak (purple/cyan) */
+.theme-streak {
+    --milestone-color-1: #6366f1;
+    --milestone-color-2: #06b6d4;
+}
+.theme-streak .milestone-card {
+    box-shadow: 0 20px 60px rgba(99, 102, 241, 0.25);
+}
+
+/* Theme: Encourage (warm orange) */
+.theme-encourage {
+    --milestone-color-1: #f59e0b;
+    --milestone-color-2: #f97316;
+}
+.theme-encourage .milestone-card {
+    box-shadow: 0 20px 60px rgba(245, 158, 11, 0.25);
+}
+
+/* Theme: Daily (gold/green) */
+.theme-daily {
+    --milestone-color-1: #f59e0b;
+    --milestone-color-2: #10b981;
+}
+.theme-daily .milestone-card {
+    box-shadow: 0 20px 60px rgba(245, 158, 11, 0.25);
+}
+
+/* Theme: Complete (green/cyan) */
+.theme-complete {
+    --milestone-color-1: #10b981;
+    --milestone-color-2: #06b6d4;
+}
+.theme-complete .milestone-card {
+    box-shadow: 0 20px 60px rgba(16, 185, 129, 0.25);
+}
+
+/* ============================================
+   DAILY GREETING
+   ============================================ */
+.daily-greeting {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.06));
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    animation: fadeIn 0.6s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.daily-greeting::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 100%;
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 70%);
+    pointer-events: none;
+}
+
+.greeting-icon {
+    font-size: 2.2rem;
+    flex-shrink: 0;
+}
+
+.greeting-content {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.greeting-text {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.greeting-quote {
+    font-size: 0.9rem;
+    color: var(--accent-secondary);
+    font-style: italic;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.greeting-stats {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   EXAM COMMENT
+   ============================================ */
+.exam-comment {
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 8px 20px;
+    margin-top: -8px;
+    line-height: 1.6;
+    animation: fadeIn 0.8s ease 0.5s both;
+}
+
+.exam-comment.pass {
+    color: var(--green);
+}
+
+.exam-comment.fail {
+    color: var(--yellow);
 }
 
 /* ============================================
