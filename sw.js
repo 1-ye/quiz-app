@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quiz-app-v6';
+const CACHE_NAME = 'quiz-app-v7';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -35,27 +35,23 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch: cache-first strategy
+// Fetch: network-first strategy (always get latest, fallback to cache when offline)
 self.addEventListener('fetch', (event) => {
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            return fetch(event.request).then((response) => {
-                // Don't cache non-GET requests or external resources
-                if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
-                    return response;
-                }
+        fetch(event.request).then((response) => {
+            // Update cache with fresh response
+            if (event.request.method === 'GET' && event.request.url.startsWith(self.location.origin)) {
                 const responseToCache = response.clone();
                 caches.open(CACHE_NAME).then((cache) => {
                     cache.put(event.request, responseToCache);
                 });
-                return response;
-            });
+            }
+            return response;
         }).catch(() => {
-            // Offline fallback
-            return caches.match('./index.html');
+            // Network failed, fallback to cache (offline mode)
+            return caches.match(event.request).then((cachedResponse) => {
+                return cachedResponse || caches.match('./index.html');
+            });
         })
     );
 });
