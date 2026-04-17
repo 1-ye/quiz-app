@@ -1961,6 +1961,53 @@ function importSyncData() {
     }
 }
 
+function exportSyncFile() {
+    try {
+        const data = JSON.stringify(state, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `quiz-sync-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('同步文件已下载！');
+    } catch (e) {
+        alert('导出失败：' + e.message);
+    }
+}
+
+function importSyncFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedState = JSON.parse(e.target.result);
+
+            if (importMode === 'replace') {
+                if (!confirm('覆盖模式会完全替换当前数据，确定继续？')) return;
+                state = { ...defaultState(), ...importedState };
+            } else {
+                mergeState(importedState);
+            }
+
+            saveState();
+            updateDashboard();
+            showToast('数据导入成功！');
+        } catch (err) {
+            alert('文件格式无效，请选择正确的同步文件\n错误：' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    // Reset file input so the same file can be selected again
+    event.target.value = '';
+}
+
 function mergeState(imported) {
     // Merge answered: keep the one where more questions are answered, prefer correct
     if (imported.answered) {

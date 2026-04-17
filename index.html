@@ -365,12 +365,14 @@
         <section class="page" id="page-sync">
             <div class="sync-container">
                 <h1 class="page-title">🔄 数据同步</h1>
-                <p class="sync-desc">通过同步码在不同设备间同步学习数据。导出数据生成同步码，在另一台设备粘贴导入即可。</p>
+                <p class="sync-desc">通过同步码或文件在不同设备间同步学习数据。推荐使用文件方式，更方便通过微信发送。</p>
                 <div class="sync-section">
                     <div class="sync-card">
                         <h3>📤 导出数据</h3>
-                        <p>将当前设备的学习进度、错题记录、收藏和考试历史导出为同步码</p>
-                        <button class="sync-btn export" onclick="exportSyncData()">生成同步码</button>
+                        <p>将当前设备的学习进度、错题记录、收藏和考试历史导出</p>
+                        <button class="sync-btn export" onclick="exportSyncFile()">📁 下载同步文件（推荐）</button>
+                        <div style="text-align:center;color:var(--text-muted);font-size:0.8rem;margin:10px 0 6px">—— 或者 ——</div>
+                        <button class="sync-btn copy" onclick="exportSyncData()">📝 生成同步码（文本）</button>
                         <div class="sync-code-area" id="exportCodeArea" style="display:none">
                             <textarea id="exportCode" readonly rows="4"></textarea>
                             <button class="sync-btn copy" onclick="copySyncCode()">📋 复制同步码</button>
@@ -378,22 +380,25 @@
                     </div>
                     <div class="sync-card">
                         <h3>📥 导入数据</h3>
-                        <p>粘贴从其他设备导出的同步码，将数据同步到当前设备</p>
+                        <p>从其他设备导入同步文件或同步码</p>
                         <div class="import-mode-tabs">
                             <button class="import-tab active" onclick="setImportMode('merge')">合并数据</button>
                             <button class="import-tab" onclick="setImportMode('replace')">覆盖数据</button>
                         </div>
+                        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importSyncFile(event)">
+                        <button class="sync-btn import" onclick="document.getElementById('importFileInput').click()">📁 选择同步文件（推荐）</button>
+                        <div style="text-align:center;color:var(--text-muted);font-size:0.8rem;margin:10px 0 6px">—— 或者 ——</div>
                         <textarea id="importCode" rows="4" placeholder="在此粘贴同步码..."></textarea>
-                        <button class="sync-btn import" onclick="importSyncData()">导入数据</button>
+                        <button class="sync-btn import" onclick="importSyncData()">📝 导入同步码</button>
                     </div>
                 </div>
                 <div class="sync-info">
                     <h3>💡 使用说明</h3>
                     <ul>
+                        <li><strong>文件方式（推荐）</strong>：下载 .json 文件，通过微信/QQ发送文件到另一台设备</li>
+                        <li><strong>同步码方式</strong>：复制文本同步码，适合剪贴板同步（文本较长）</li>
                         <li><strong>合并模式</strong>：保留本机数据，补充导入的数据（推荐）</li>
                         <li><strong>覆盖模式</strong>：完全使用导入的数据替换本机数据</li>
-                        <li>同步码包含：学习记录、错题、收藏、考试历史</li>
-                        <li>可通过微信/QQ等工具将同步码发送到另一台设备</li>
                     </ul>
                 </div>
             </div>
