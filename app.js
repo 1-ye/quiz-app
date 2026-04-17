@@ -11,6 +11,7 @@ function defaultState() {
         answered: {},       // { questionId: { selected: 'A'|'AB'|..., correct: bool } }
         wrong: [],          // [questionId, ...]
         favorites: [],      // [questionId, ...]
+        favFolders: [],     // [{ id, name, items: [questionId, ...] }, ...]
         dailyStats: {},     // { '2025-01-01': { done: 10, correct: 8 } }
         lastPosition: 0,    // last practice index
         streak: 0,          // consecutive correct
@@ -1117,20 +1118,303 @@ function clearWrong() {
 
 // ===== FAVORITES LIST =====
 function renderFavList() {
+    const folderArea = document.getElementById('favFolderArea');
     const list = document.getElementById('favList');
+    const ungroupedLabel = document.getElementById('favUngroupedLabel');
     document.getElementById('favCount').textContent = state.favorites.length + ' 题';
 
+    if (!state.favFolders) state.favFolders = [];
+
+    // Get IDs in folders
+    const idsInFolders = new Set();
+    state.favFolders.forEach(f => f.items.forEach(id => idsInFolders.add(id)));
+
+    // Ungrouped favorites
+    const ungrouped = state.favorites.filter(id => !idsInFolders.has(id));
+
     if (state.favorites.length === 0) {
+        folderArea.innerHTML = '';
+        ungroupedLabel.style.display = 'none';
         list.innerHTML = '<div class="empty-state"><div class="empty-icon">⭐</div><div class="empty-text">暂无收藏题目</div></div>';
         return;
     }
 
-    list.innerHTML = '';
-    state.favorites.forEach(id => {
-        const q = QUESTIONS.find(qq => qq.id === id);
-        if (!q) return;
-        list.appendChild(createListItem(q, () => jumpToQuestion(q)));
+    // Render folders
+    folderArea.innerHTML = '';
+    state.favFolders.forEach(folder => {
+        const folderEl = document.createElement('div');
+        folderEl.className = 'fav-folder';
+        folderEl.dataset.folderId = folder.id;
+
+        const header = document.createElement('div');
+        header.className = 'fav-folder-header';
+        header.innerHTML = `
+            <div class="fav-folder-left">
+                <span class="fav-folder-arrow">▶</span>
+                <span class="fav-folder-icon">📁</span>
+                <span class="fav-folder-name" onclick="renameFavFolder('${folder.id}')">${folder.name}</span>
+                <span class="fav-folder-count">(${folder.items.length})</span>
+            </div>
+            <div class="fav-folder-actions">
+                <button class="fav-folder-btn" onclick="event.stopPropagation(); practiceFolder('${folder.id}')" title="练习">📝</button>
+                <button class="fav-folder-btn danger" onclick="event.stopPropagation(); deleteFavFolder('${folder.id}')" title="删除">🗑️</button>
+            </div>
+        `;
+
+        header.addEventListener('click', (e) => {
+            if (e.target.closest('.fav-folder-actions') || e.target.classList.contains('fav-folder-name')) return;
+            folderEl.classList.toggle('open');
+        });
+
+        const body = document.createElement('div');
+        body.className = 'fav-folder-body';
+        body.dataset.folderId = folder.id;
+
+        // Drop zone indicator
+        body.addEventListener('dragover', (e) => { e.preventDefault(); folderEl.classList.add('drag-over'); });
+        body.addEventListener('dragleave', () => folderEl.classList.remove('drag-over'));
+        body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            folderEl.classList.remove('drag-over');
+            const qid = parseInt(e.dataTransfer.getData('text/plain'));
+            if (qid) moveToFolder(qid, folder.id);
+        });
+
+        // Also allow drop on header
+        header.addEventListener('dragover', (e) => { e.preventDefault(); folderEl.classList.add('drag-over'); });
+        header.addEventListener('dragleave', () => folderEl.classList.remove('drag-over'));
+        header.addEventListener('drop', (e) => {
+            e.preventDefault();
+            folderEl.classList.remove('drag-over');
+            const qid = parseInt(e.dataTransfer.getData('text/plain'));
+            if (qid) moveToFolder(qid, folder.id);
+        });
+
+        folder.items.forEach(id => {
+            const q = QUESTIONS.find(qq => qq.id === id);
+            if (!q) return;
+            const item = createDraggableListItem(q, () => jumpToQuestion(q));
+            body.appendChild(item);
+        });
+
+        if (folder.items.length === 0) {
+            body.innerHTML = '<div class="fav-folder-empty">拖拽题目到这里</div>';
+        }
+
+        folderEl.appendChild(header);
+        folderEl.appendChild(body);
+        folderArea.appendChild(folderEl);
     });
+
+    // Show/hide ungrouped label
+    ungroupedLabel.style.display = (state.favFolders.length > 0 && ungrouped.length > 0) ? 'block' : 'none';
+
+    // Ungrouped area drop zone
+    list.addEventListener('dragover', (e) => { e.preventDefault(); list.classList.add('drag-over-ungrouped'); });
+    list.addEventListener('dragleave', () => list.classList.remove('drag-over-ungrouped'));
+    list.addEventListener('drop', (e) => {
+        e.preventDefault();
+        list.classList.remove('drag-over-ungrouped');
+        const qid = parseInt(e.dataTransfer.getData('text/plain'));
+        if (qid) removeFromAllFolders(qid);
+    });
+
+    // Render ungrouped items
+    list.innerHTML = '';
+    if (ungrouped.length === 0 && state.favFolders.length > 0) {
+        list.innerHTML = '<div class="empty-state small"><div class="empty-text">所有题目已分组</div></div>';
+    } else {
+        ungrouped.forEach(id => {
+            const q = QUESTIONS.find(qq => qq.id === id);
+            if (!q) return;
+            list.appendChild(createDraggableListItem(q, () => jumpToQuestion(q)));
+        });
+    }
+}
+
+function createDraggableListItem(q, onClick) {
+    const div = document.createElement('div');
+    div.className = 'q-list-item draggable';
+    div.draggable = true;
+    div.dataset.qid = q.id;
+    div.innerHTML = `
+        <span class="drag-handle">⠿</span>
+        <span class="q-list-id">${q.id}</span>
+        <div class="q-list-content">
+            <div class="q-list-text">${q.question}</div>
+            <div class="q-list-meta">
+                <span class="q-list-tag ${q.type}">${q.typeName}</span>
+            </div>
+        </div>
+    `;
+
+    // PC drag
+    div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', q.id.toString());
+        div.classList.add('dragging');
+        setTimeout(() => div.style.opacity = '0.4', 0);
+    });
+    div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+        div.style.opacity = '';
+    });
+
+    // Mobile long-press drag
+    let touchTimer = null;
+    let isDragging = false;
+    let dragClone = null;
+    let touchStartY = 0;
+
+    div.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+        touchTimer = setTimeout(() => {
+            isDragging = true;
+            div.classList.add('dragging');
+            // Create floating clone
+            dragClone = div.cloneNode(true);
+            dragClone.className = 'q-list-item drag-clone';
+            dragClone.style.position = 'fixed';
+            dragClone.style.width = div.offsetWidth + 'px';
+            dragClone.style.zIndex = '10000';
+            dragClone.style.pointerEvents = 'none';
+            document.body.appendChild(dragClone);
+            window._dragQid = q.id;
+            // Haptic feedback if available
+            if (navigator.vibrate) navigator.vibrate(30);
+        }, 500);
+    }, { passive: true });
+
+    div.addEventListener('touchmove', (e) => {
+        if (!isDragging) {
+            // Cancel if moved too much before long press triggers
+            if (Math.abs(e.touches[0].clientY - touchStartY) > 10) {
+                clearTimeout(touchTimer);
+            }
+            return;
+        }
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (dragClone) {
+            dragClone.style.left = (touch.clientX - 20) + 'px';
+            dragClone.style.top = (touch.clientY - 20) + 'px';
+        }
+        // Highlight folder under finger
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        document.querySelectorAll('.fav-folder').forEach(f => f.classList.remove('drag-over'));
+        if (el) {
+            const folder = el.closest('.fav-folder');
+            if (folder) folder.classList.add('drag-over');
+        }
+    }, { passive: false });
+
+    div.addEventListener('touchend', (e) => {
+        clearTimeout(touchTimer);
+        if (isDragging) {
+            isDragging = false;
+            div.classList.remove('dragging');
+            if (dragClone) {
+                document.body.removeChild(dragClone);
+                dragClone = null;
+            }
+            // Find target folder
+            const touch = e.changedTouches[0];
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            document.querySelectorAll('.fav-folder').forEach(f => f.classList.remove('drag-over'));
+            if (el) {
+                const folder = el.closest('.fav-folder');
+                if (folder) {
+                    moveToFolder(window._dragQid, folder.dataset.folderId);
+                } else if (el.closest('#favList') || el.closest('.fav-ungrouped-label')) {
+                    removeFromAllFolders(window._dragQid);
+                }
+            }
+            window._dragQid = null;
+        } else {
+            // Normal tap — navigate to question
+            onClick();
+        }
+    });
+
+    // Click handler (PC only, touchend handles mobile)
+    div.addEventListener('click', (e) => {
+        if (e.target.closest('.drag-handle')) return;
+        if (!lastInteractionWasTouch) onClick();
+    });
+
+    return div;
+}
+
+// ===== FOLDER CRUD =====
+
+function createFavFolder() {
+    const name = prompt('请输入文件夹名称：');
+    if (!name || !name.trim()) return;
+    if (!state.favFolders) state.favFolders = [];
+    state.favFolders.push({
+        id: 'f' + Date.now(),
+        name: name.trim(),
+        items: []
+    });
+    saveState();
+    renderFavList();
+    showToast('文件夹已创建');
+}
+
+function renameFavFolder(folderId) {
+    const folder = state.favFolders.find(f => f.id === folderId);
+    if (!folder) return;
+    const name = prompt('重命名文件夹：', folder.name);
+    if (!name || !name.trim()) return;
+    folder.name = name.trim();
+    saveState();
+    renderFavList();
+}
+
+function deleteFavFolder(folderId) {
+    if (!confirm('删除文件夹？（题目不会被取消收藏，会回到未分组）')) return;
+    state.favFolders = state.favFolders.filter(f => f.id !== folderId);
+    saveState();
+    renderFavList();
+    showToast('文件夹已删除');
+}
+
+function practiceFolder(folderId) {
+    const folder = state.favFolders.find(f => f.id === folderId);
+    if (!folder || folder.items.length === 0) {
+        showToast('文件夹中没有题目');
+        return;
+    }
+    const qs = folder.items.map(id => QUESTIONS.find(q => q.id === id)).filter(Boolean);
+    practiceQuestions = qs;
+    practiceIndex = 0;
+    practiceMode = 'favorites';
+    document.getElementById('practiceType').textContent = '📁 ' + folder.name;
+    showPage('practice');
+    renderPracticeQuestion();
+}
+
+function moveToFolder(qid, folderId) {
+    if (!state.favFolders) return;
+    // Remove from all folders first
+    state.favFolders.forEach(f => {
+        f.items = f.items.filter(id => id !== qid);
+    });
+    // Add to target folder
+    const folder = state.favFolders.find(f => f.id === folderId);
+    if (folder && !folder.items.includes(qid)) {
+        folder.items.push(qid);
+    }
+    saveState();
+    renderFavList();
+}
+
+function removeFromAllFolders(qid) {
+    if (!state.favFolders) return;
+    state.favFolders.forEach(f => {
+        f.items = f.items.filter(id => id !== qid);
+    });
+    saveState();
+    renderFavList();
 }
 
 function createListItem(q, onClick) {
