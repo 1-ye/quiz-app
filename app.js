@@ -787,10 +787,13 @@ function renderPracticeQuestion() {
         saveState();
     }
 
-    // Update practice quote (rotates every 5 questions)
+    // Update practice quote (changes every 5 questions, randomized per session)
     const quoteEl = document.getElementById('practiceQuote');
     if (quoteEl) {
-        const quoteIndex = Math.floor(practiceIndex / 5) % DAILY_QUOTES.length;
+        const groupIndex = Math.floor(practiceIndex / 5);
+        // Mix group index with a session-random seed for different quotes each time
+        if (!window._quoteSessionSeed) window._quoteSessionSeed = Math.floor(Math.random() * DAILY_QUOTES.length);
+        const quoteIndex = (groupIndex + window._quoteSessionSeed) % DAILY_QUOTES.length;
         quoteEl.textContent = DAILY_QUOTES[quoteIndex];
     }
 }
