@@ -1796,10 +1796,11 @@ function renderExamHistory() {
                 <span>判断 ${record.judgeCorrect}/${record.judgeTotal}</span>
                 <span>用时 ${mins}分${secs}秒</span>
             </div>
-            ${hasDetail ? `<div class="eh-actions">
-                <button class="eh-btn" onclick="viewHistoryExam(${idx}, 'all')">📖 查看全部</button>
-                <button class="eh-btn eh-btn-wrong" onclick="viewHistoryExam(${idx}, 'wrong')">❌ 只看错题</button>
-            </div>` : '<div class="eh-note">无详细记录</div>'}
+            <div class="eh-actions">
+                ${hasDetail ? `<button class="eh-btn" onclick="viewHistoryExam(${idx}, 'all')">📖 查看全部</button>
+                <button class="eh-btn eh-btn-wrong" onclick="viewHistoryExam(${idx}, 'wrong')">❌ 只看错题</button>` : '<span class="eh-note">无详细记录</span>'}
+                <button class="eh-btn eh-btn-delete" onclick="deleteExamHistory(${idx})">🗑️ 删除</button>
+            </div>
         `;
         list.appendChild(div);
     });
@@ -1834,6 +1835,14 @@ function reviewExamWrong() {
     document.getElementById('practiceType').textContent = `错题回顾 (${wrongQs.length}题)`;
     showPage('practice');
     renderPracticeQuestion();
+}
+
+function deleteExamHistory(historyIndex) {
+    if (!confirm('确定删除这条考试记录？')) return;
+    if (!state.examHistory) return;
+    state.examHistory.splice(historyIndex, 1);
+    saveState();
+    renderExamHistory();
 }
 
 function viewHistoryExam(historyIndex, mode) {
