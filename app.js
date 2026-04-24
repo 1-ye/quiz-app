@@ -2387,10 +2387,14 @@ function importSyncFile(event) {
 }
 
 function mergeState(imported) {
-    // Merge answered: keep the one where more questions are answered, prefer correct
+    // Merge answered: prefer correct answers from either side
     if (imported.answered) {
         Object.keys(imported.answered).forEach(qid => {
             if (!state.answered[qid]) {
+                // New answer — import it
+                state.answered[qid] = imported.answered[qid];
+            } else if (imported.answered[qid].correct && !state.answered[qid].correct) {
+                // Imported has correct answer, local has wrong — prefer correct
                 state.answered[qid] = imported.answered[qid];
             }
         });
@@ -2403,12 +2407,24 @@ function mergeState(imported) {
                 state.wrong.push(id);
             }
         });
-        // Remove from wrong if correctly answered in current state
-        state.wrong = state.wrong.filter(id => {
-            const ans = state.answered[id];
-            return !ans || !ans.correct;
+    }
+
+    // Also add any imported incorrect answers to wrong list if missing
+    if (imported.answered) {
+        Object.keys(imported.answered).forEach(qid => {
+            const numId = parseInt(qid);
+            if (state.answered[qid] && !state.answered[qid].correct && !state.wrong.includes(numId)) {
+                state.wrong.push(numId);
+            }
         });
     }
+
+    // Reconcile: remove from wrong if correctly answered in merged state
+    // (Always run this, not just when imported.wrong exists)
+    state.wrong = state.wrong.filter(id => {
+        const ans = state.answered[id];
+        return !ans || !ans.correct;
+    });
 
     // Merge favorites: union
     if (imported.favorites) {
