@@ -15,7 +15,8 @@ function defaultState() {
         dailyStats: {},     // { '2025-01-01': { done: 10, correct: 8 } }
         lastPosition: 0,    // last practice index
         streak: 0,          // consecutive correct
-        examHistory: []     // [{ date, score, totalScore, singleCorrect, singleTotal, multiCorrect, multiTotal, judgeCorrect, judgeTotal, usedTime, totalQuestions }, ...]
+        examHistory: [],    // [{ date, score, totalScore, singleCorrect, singleTotal, multiCorrect, multiTotal, judgeCorrect, judgeTotal, usedTime, totalQuestions }, ...]
+        answerOverrides: {} // { questionId: 'ABCD' } - user-modified correct answers
     };
 }
 
@@ -29,6 +30,11 @@ function loadState() {
 
 function saveState() {
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+// ===== ANSWER OVERRIDE HELPER =====
+function getAnswer(q) {
+    return state.answerOverrides[q.id] || q.answer;
 }
 
 // ===== PRACTICE STATE =====
@@ -947,7 +953,7 @@ function submitAnswer() {
 
     const q = practiceQuestions[practiceIndex];
     const selected = Array.from(selectedOptions).sort().join('');
-    const correctAnswer = q.answer.split('').sort().join('');
+    const correctAnswer = getAnswer(q).split('').sort().join('');
     const isCorrect = selected === correctAnswer;
 
     // Record answer
@@ -1035,6 +1041,144 @@ function changeAnswer() {
     renderPracticeQuestion();
 
     showToast('🔄 已重置，请重新作答');
+}
+
+// ===== EDIT CORRECT ANSWER =====
+function editAnswer(qId) {
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    if (!q) return;
+
+    const currentAnswer = getAnswer(q);
+    const optionKeys = q.options
+        .filter(opt => opt.text && opt.text.trim() !== '/' && opt.text.trim() !== '')
+        .map(opt => opt.key);
+
+    // Build checkboxes for each option
+    const optionsHtml = optionKeys.map(key => {
+        const checked = currentAnswer.includes(key) ? 'checked' : '';
+        const optText = q.options.find(o => o.key === key)?.text || '';
+        return `
+            <label class="edit-answer-option">
+                <input type="checkbox" value="${key}" ${checked} onchange="updateEditAnswerPreview()">
+                <span class="edit-answer-key">${key}</span>
+                <span class="edit-answer-text">${optText}</span>
+            </label>
+        `;
+    }).join('');
+
+    const isOverridden = state.answerOverrides[q.id] !== undefined;
+    const originalAnswer = q.answer;
+
+    const modal = document.getElementById('editAnswerModal');
+    modal.innerHTML = `
+        <div class="modal-content edit-answer-modal">
+            <div class="modal-header">
+                <h2>✏️ 修改正确答案</h2>
+                <button class="modal-close" onclick="closeModal('editAnswerModal')">✕</button>
+            </div>
+            <div class="edit-answer-question">${q.question}</div>
+            <div class="edit-answer-info">
+                <span>原始答案：<strong>${originalAnswer}</strong></span>
+                ${isOverridden ? '<span class="answer-overridden-badge">已修改</span>' : ''}
+            </div>
+            <div class="edit-answer-options" id="editAnswerOptions">
+                ${optionsHtml}
+            </div>
+            <div class="edit-answer-preview">
+                当前选择：<strong id="editAnswerPreview">${currentAnswer}</strong>
+            </div>
+            <div class="edit-answer-actions">
+                ${isOverridden ? '<button class="btn-reset-answer" onclick="resetAnswer(' + q.id + ')">🔙 恢复原答案</button>' : ''}
+                <button class="btn-save-answer" onclick="saveAnswerEdit(${q.id})">💾 保存</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
+
+function updateEditAnswerPreview() {
+    const checkboxes = document.querySelectorAll('#editAnswerOptions input[type="checkbox"]:checked');
+    const selected = Array.from(checkboxes).map(cb => cb.value).sort().join('');
+    document.getElementById('editAnswerPreview').textContent = selected || '（未选择）';
+}
+
+function saveAnswerEdit(qId) {
+    const checkboxes = document.querySelectorAll('#editAnswerOptions input[type="checkbox"]:checked');
+    const newAnswer = Array.from(checkboxes).map(cb => cb.value).sort().join('');
+
+    if (!newAnswer) {
+        showToast('⚠️ 请至少选择一个选项');
+        return;
+    }
+
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    if (!q) return;
+
+    // If same as original, remove the override
+    if (newAnswer === q.answer.split('').sort().join('')) {
+        delete state.answerOverrides[qId];
+    } else {
+        state.answerOverrides[qId] = newAnswer;
+    }
+
+    // Re-evaluate the answered record for this question
+    if (state.answered[qId]) {
+        const prevSelected = state.answered[qId].selected;
+        const nowCorrect = prevSelected.split('').sort().join('') === newAnswer;
+        state.answered[qId].correct = nowCorrect;
+
+        // Update wrong list
+        if (nowCorrect) {
+            state.wrong = state.wrong.filter(id => id !== qId);
+        } else {
+            if (!state.wrong.includes(qId)) state.wrong.push(qId);
+        }
+    }
+
+    saveState();
+    closeModal('editAnswerModal');
+
+    // Re-render current question if it matches
+    if (practiceQuestions[practiceIndex]?.id === qId && isAnswered) {
+        const q2 = practiceQuestions[practiceIndex];
+        const record = state.answered[q2.id];
+        if (record) {
+            showResult(q2, record.correct);
+        }
+    }
+
+    showToast('✅ 正确答案已更新');
+}
+
+function resetAnswer(qId) {
+    delete state.answerOverrides[qId];
+
+    // Re-evaluate the answered record
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    if (q && state.answered[qId]) {
+        const prevSelected = state.answered[qId].selected;
+        const nowCorrect = prevSelected.split('').sort().join('') === q.answer.split('').sort().join('');
+        state.answered[qId].correct = nowCorrect;
+
+        if (nowCorrect) {
+            state.wrong = state.wrong.filter(id => id !== qId);
+        } else {
+            if (!state.wrong.includes(qId)) state.wrong.push(qId);
+        }
+    }
+
+    saveState();
+    closeModal('editAnswerModal');
+
+    if (practiceQuestions[practiceIndex]?.id === qId && isAnswered) {
+        const q2 = practiceQuestions[practiceIndex];
+        const record = state.answered[q2.id];
+        if (record) {
+            showResult(q2, record.correct);
+        }
+    }
+
+    showToast('🔙 已恢复原始答案');
 }
 
 // ===== PRACTICE TIMER =====
@@ -1175,12 +1319,16 @@ function showResult(q, isCorrect) {
 
     document.getElementById('resultIcon').textContent = isCorrect ? '✅' : '❌';
     document.getElementById('resultText').textContent = isCorrect ? '回答正确！' : '回答错误';
-    document.getElementById('resultAnswer').textContent = '正确答案：' + q.answer;
+    const currentAnswer = getAnswer(q);
+    const isOverridden = state.answerOverrides[q.id] !== undefined;
+    document.getElementById('resultAnswer').innerHTML = '正确答案：' + currentAnswer +
+        (isOverridden ? ' <span class="answer-overridden-badge">已修改</span>' : '') +
+        ' <button class="btn-edit-answer" onclick="editAnswer(' + q.id + ')" title="修改正确答案">✏️ 改答案</button>';
     document.getElementById('resultAnalysis').textContent = q.analysis ? '解析：' + q.analysis : '';
     document.getElementById('resultAnalysis').style.display = q.analysis ? 'block' : 'none';
 
     // Highlight options
-    const answerKeys = new Set(q.answer.split(''));
+    const answerKeys = new Set(currentAnswer.split(''));
     document.querySelectorAll('#optionsList .option-item').forEach(el => {
         const key = el.dataset.key;
         el.classList.remove('selected');
@@ -1831,7 +1979,7 @@ function finishExam() {
             return;
         }
         const selected = Array.from(ans).sort().join('');
-        const correctAns = q.answer.split('').sort().join('');
+        const correctAns = getAnswer(q).split('').sort().join('');
         if (selected === correctAns) {
             correct++;
             if (q.type === 'single') singleCorrect++;
@@ -2011,7 +2159,7 @@ function reviewExamWrong() {
         const ans = examAnswers[i];
         if (!ans || ans.size === 0) return true; // unanswered = wrong
         const selected = Array.from(ans).sort().join('');
-        const correctAns = q.answer.split('').sort().join('');
+        const correctAns = getAnswer(q).split('').sort().join('');
         return selected !== correctAns;
     });
     if (wrongQs.length === 0) {
@@ -2052,7 +2200,7 @@ function viewHistoryExam(historyIndex, mode) {
         const wrongQs = allQs.filter((q, i) => {
             const userAns = record.userAnswers[i];
             if (!userAns) return true; // unanswered = wrong
-            const correctAns = q.answer.split('').sort().join('');
+            const correctAns = getAnswer(q).split('').sort().join('');
             return userAns !== correctAns;
         });
         if (wrongQs.length === 0) {
