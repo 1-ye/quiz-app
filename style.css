@@ -606,6 +606,80 @@ body {
     opacity: 0.7;
 }
 
+/* Practice Timer */
+.practice-timer-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.practice-timer {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timer-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.timer-ring-bg {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 3;
+}
+
+.timer-ring-fg {
+    fill: none;
+    stroke: var(--cyan);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s linear, stroke 0.3s ease;
+}
+
+.timer-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cyan);
+    font-variant-numeric: tabular-nums;
+    z-index: 1;
+    transition: color 0.3s ease;
+}
+
+.practice-timer.timer-warning .timer-ring-fg {
+    stroke: var(--yellow);
+}
+
+.practice-timer.timer-warning .timer-text {
+    color: var(--yellow);
+}
+
+.practice-timer.timer-danger .timer-ring-fg {
+    stroke: var(--red);
+}
+
+.practice-timer.timer-danger .timer-text {
+    color: var(--red);
+    animation: timerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+.icon-btn.timer-active {
+    color: var(--cyan);
+    border-color: var(--cyan);
+    background: rgba(6, 182, 212, 0.1);
+}
+
 /* ============================================
    FAVORITES FOLDERS
    ============================================ */
@@ -1048,6 +1122,20 @@ body {
 .nav-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.nav-btn.btn-change-answer {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    flex: 1;
+    animation: slideUp 0.3s ease;
+}
+
+.nav-btn.btn-change-answer:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
 }
 
 /* ============================================

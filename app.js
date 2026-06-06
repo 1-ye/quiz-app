@@ -61,10 +61,16 @@ let examAnswers = {};  // { index: Set<option> }
 let examTimer = null;
 let examTimeLeft = 0;
 let examStartTime = 0;
-let examConfig = { singleCount: 60, multiCount: 60, judgeCount: 20, time: 90 };
+let examConfig = { singleCount: 60, multiCount: 100, judgeCount: 40, time: 90 };
 let examHighlightedOptionIndex = -1;  // for arrow key navigation in exam mode
 let importMode = 'merge'; // 'merge' or 'replace'
 let wrongStreak = 0;  // consecutive wrong answers (session only, not persisted)
+
+// ===== PRACTICE TIMER STATE =====
+let practiceTimerEnabled = false;
+let practiceTimerInterval = null;
+let practiceTimeLeft = 30;
+const PRACTICE_TIMER_DURATION = 30; // seconds per question
 
 // ===== MOTIVATIONAL QUOTES =====
 const STREAK_MILESTONES = {
@@ -673,6 +679,11 @@ function showPage(pageName) {
     if (navItem) navItem.classList.add('active');
     document.getElementById('sidebar').classList.remove('open');
 
+    // Stop practice timer when leaving practice page
+    if (pageName !== 'practice') {
+        stopPracticeTimer();
+    }
+
     if (pageName === 'dashboard') updateDashboard();
     else if (pageName === 'practice') {
         // If no questions loaded, auto-start sequential practice
@@ -872,6 +883,7 @@ function renderPracticeQuestion() {
     // Nav buttons
     document.getElementById('btnPrev').disabled = practiceIndex === 0;
     document.getElementById('btnSubmit').style.display = isAnswered ? 'none' : 'block';
+    document.getElementById('btnChangeAnswer').style.display = isAnswered ? 'block' : 'none';
 
     // Save position
     if (practiceMode === 'sequential' && practiceMode !== 'wrong') {
@@ -888,6 +900,14 @@ function renderPracticeQuestion() {
         const quoteIndex = (groupIndex + window._quoteSessionSeed) % DAILY_QUOTES.length;
         quoteEl.textContent = DAILY_QUOTES[quoteIndex];
     }
+
+    // Practice timer: restart for each new unanswered question
+    if (practiceTimerEnabled && !isAnswered) {
+        startPracticeTimer();
+    } else {
+        stopPracticeTimer();
+    }
+    updateTimerToggleButton();
 }
 
 function selectOption(key, q, fromTouch = false) {
@@ -952,9 +972,11 @@ function submitAnswer() {
 
     saveState();
     isAnswered = true;
+    stopPracticeTimer();
 
     showResult(q, isCorrect);
     document.getElementById('btnSubmit').style.display = 'none';
+    document.getElementById('btnChangeAnswer').style.display = 'block';
     document.getElementById('streakBadge').textContent = '🔥 ' + state.streak;
 
     // Check milestones (after a short delay so the result animation shows first)
@@ -977,6 +999,173 @@ function submitAnswer() {
             };
             tryAdvance();
         }, 1000);
+    }
+}
+
+function changeAnswer() {
+    const q = practiceQuestions[practiceIndex];
+    if (!q) return;
+
+    // Undo the previous answer's stats effects
+    const prevRecord = state.answered[q.id];
+    if (prevRecord) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (state.dailyStats[today]) {
+            state.dailyStats[today].done = Math.max(0, state.dailyStats[today].done - 1);
+            if (prevRecord.correct) {
+                state.dailyStats[today].correct = Math.max(0, state.dailyStats[today].correct - 1);
+            }
+        }
+    }
+
+    // Remove the answer record
+    delete state.answered[q.id];
+
+    // Remove from wrong list (will be re-evaluated on re-submit)
+    state.wrong = state.wrong.filter(id => id !== q.id);
+
+    saveState();
+
+    // Reset UI state
+    selectedOptions = new Set();
+    isAnswered = false;
+    highlightedOptionIndex = -1;
+
+    // Re-render the question fresh
+    renderPracticeQuestion();
+
+    showToast('🔄 已重置，请重新作答');
+}
+
+// ===== PRACTICE TIMER =====
+function togglePracticeTimer() {
+    practiceTimerEnabled = !practiceTimerEnabled;
+    const timerArea = document.getElementById('practiceTimerArea');
+    if (practiceTimerEnabled) {
+        timerArea.style.display = 'flex';
+        if (!isAnswered) {
+            startPracticeTimer();
+        }
+    } else {
+        stopPracticeTimer();
+        timerArea.style.display = 'none';
+    }
+    updateTimerToggleButton();
+}
+
+function updateTimerToggleButton() {
+    const btn = document.getElementById('btnTimerToggle');
+    if (!btn) return;
+    if (practiceTimerEnabled) {
+        btn.classList.add('timer-active');
+        btn.title = '计时器已开启（点击关闭）';
+    } else {
+        btn.classList.remove('timer-active');
+        btn.title = '计时器已关闭（点击开启）';
+    }
+}
+
+function startPracticeTimer() {
+    stopPracticeTimer();
+    practiceTimeLeft = PRACTICE_TIMER_DURATION;
+    updatePracticeTimerDisplay();
+    const timerArea = document.getElementById('practiceTimerArea');
+    if (timerArea) timerArea.style.display = 'flex';
+
+    practiceTimerInterval = setInterval(() => {
+        practiceTimeLeft--;
+        updatePracticeTimerDisplay();
+        if (practiceTimeLeft <= 0) {
+            stopPracticeTimer();
+            onPracticeTimerExpired();
+        }
+    }, 1000);
+}
+
+function stopPracticeTimer() {
+    if (practiceTimerInterval) {
+        clearInterval(practiceTimerInterval);
+        practiceTimerInterval = null;
+    }
+}
+
+function updatePracticeTimerDisplay() {
+    const textEl = document.getElementById('timerText');
+    const ringEl = document.getElementById('timerRing');
+    if (!textEl || !ringEl) return;
+
+    textEl.textContent = practiceTimeLeft;
+
+    // Update ring progress
+    const circumference = 2 * Math.PI * 17; // r=17
+    const progress = practiceTimeLeft / PRACTICE_TIMER_DURATION;
+    const offset = circumference * (1 - progress);
+    ringEl.style.strokeDasharray = circumference;
+    ringEl.style.strokeDashoffset = offset;
+
+    // Color changes based on time left
+    const timerEl = document.getElementById('practiceTimer');
+    if (!timerEl) return;
+    timerEl.classList.remove('timer-warning', 'timer-danger');
+    if (practiceTimeLeft <= 5) {
+        timerEl.classList.add('timer-danger');
+    } else if (practiceTimeLeft <= 10) {
+        timerEl.classList.add('timer-warning');
+    }
+}
+
+function onPracticeTimerExpired() {
+    if (isAnswered) return;
+    const q = practiceQuestions[practiceIndex];
+    if (!q) return;
+
+    if (selectedOptions.size > 0) {
+        // Auto-submit the current selection
+        submitAnswer();
+    } else {
+        // No answer selected: mark as wrong and show correct answer
+        const selected = '';
+        const isCorrect = false;
+
+        state.answered[q.id] = { selected: '', correct: false };
+        if (!state.wrong.includes(q.id)) state.wrong.push(q.id);
+        state.streak = 0;
+        wrongStreak++;
+
+        const today = new Date().toISOString().slice(0, 10);
+        if (!state.dailyStats[today]) state.dailyStats[today] = { done: 0, correct: 0 };
+        state.dailyStats[today].done++;
+
+        saveState();
+        isAnswered = true;
+
+        showResult(q, false);
+        document.getElementById('btnSubmit').style.display = 'none';
+        document.getElementById('streakBadge').textContent = '🔥 ' + state.streak;
+
+        // Show timeout notification
+        showToast('⏰ 时间到！自动跳过');
+
+        // Check milestones
+        setTimeout(() => {
+            checkMilestones(false, state.dailyStats[today].done);
+        }, 500);
+
+        // Auto-advance after delay
+        if (practiceIndex < practiceQuestions.length - 1) {
+            setTimeout(() => {
+                const tryAdvance = () => {
+                    if (document.querySelector('.milestone-overlay')) {
+                        setTimeout(tryAdvance, 500);
+                        return;
+                    }
+                    if (isAnswered && practiceQuestions[practiceIndex]?.id === q.id) {
+                        nextQuestion();
+                    }
+                };
+                tryAdvance();
+            }, 1500);
+        }
     }
 }
 
@@ -1492,7 +1681,7 @@ function resetExamView() {
 }
 
 function startExam() {
-    // Fixed exam structure: 60 single + 60 multi + 20 judge
+    // Fixed exam structure: 60 single + 100 multi + 40 judge
     const singlePool = QUESTIONS.filter(q => q.type === 'single');
     const multiPool = QUESTIONS.filter(q => q.type === 'multi');
     const judgePool = QUESTIONS.filter(q => q.type === 'judge');
@@ -1664,12 +1853,12 @@ function finishExam() {
         if (selected === correctAns) state.dailyStats[today].correct++;
     });
 
-    // Calculate score: single 0.5pt, multi 1pt, judge 0.5pt
+    // Calculate score: single 0.5pt, multi 0.5pt, judge 0.5pt
     const singleScore = singleCorrect * 0.5;
-    const multiScore = multiCorrect * 1;
+    const multiScore = multiCorrect * 0.5;
     const judgeScore = judgeCorrect * 0.5;
     const totalScore = singleScore + multiScore + judgeScore;
-    const maxScore = 100; // 30 + 60 + 10
+    const maxScore = 100; // 30 + 50 + 20
 
     // Save exam result to history (including question IDs and user answers for later review)
     const questionIds = examQuestions.map(q => q.id);

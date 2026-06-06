@@ -164,7 +164,17 @@
                         <span class="practice-type" id="practiceType">练习模式</span>
                         <span class="practice-progress" id="practiceProgress">1 / 100</span>
                     </div>
+                    <div class="practice-timer-area" id="practiceTimerArea" style="display:none">
+                        <div class="practice-timer" id="practiceTimer">
+                            <svg class="timer-ring" viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="17" class="timer-ring-bg" />
+                                <circle cx="20" cy="20" r="17" class="timer-ring-fg" id="timerRing" />
+                            </svg>
+                            <span class="timer-text" id="timerText">30</span>
+                        </div>
+                    </div>
                     <div class="practice-actions">
+                        <button class="icon-btn" id="btnTimerToggle" onclick="togglePracticeTimer()" title="计时器开关">⏱️</button>
                         <button class="icon-btn" id="btnFav" onclick="toggleFavorite()" title="收藏">☆</button>
                         <button class="icon-btn" onclick="showAnswerCard()" title="答题卡">📋</button>
                         <button class="icon-btn" onclick="showPage('dashboard')" title="退出">✕</button>
@@ -188,6 +198,7 @@
                 <div class="practice-nav">
                     <button class="nav-btn" id="btnPrev" onclick="prevQuestion()">← 上一题</button>
                     <button class="nav-btn btn-submit" id="btnSubmit" onclick="submitAnswer()">确认提交</button>
+                    <button class="nav-btn btn-change-answer" id="btnChangeAnswer" onclick="changeAnswer()" style="display:none">🔄 重新作答</button>
                     <button class="nav-btn" id="btnNext" onclick="nextQuestion()">下一题 →</button>
                 </div>
             </div>
@@ -211,18 +222,18 @@
                                 <div class="rule-item">
                                     <span class="rule-icon">📑</span>
                                     <span class="rule-label">多选题</span>
-                                    <span class="rule-value">60题 × 1分 = 60分</span>
+                                    <span class="rule-value">100题 × 0.5分 = 50分</span>
                                 </div>
                                 <div class="rule-item">
                                     <span class="rule-icon">⚖️</span>
                                     <span class="rule-label">判断题</span>
-                                    <span class="rule-value">20题 × 0.5分 = 10分</span>
+                                    <span class="rule-value">40题 × 0.5分 = 20分</span>
                                 </div>
                                 <div class="rule-divider"></div>
                                 <div class="rule-item rule-total">
                                     <span class="rule-icon">📝</span>
                                     <span class="rule-label">总计</span>
-                                    <span class="rule-value">140题 · 100分 · 90分钟</span>
+                                    <span class="rule-value">200题 · 100分 · 90分钟</span>
                                 </div>
                             </div>
                         </div>
