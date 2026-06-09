@@ -16,7 +16,8 @@ function defaultState() {
         lastPosition: 0,    // last practice index
         streak: 0,          // consecutive correct
         examHistory: [],    // [{ date, score, totalScore, singleCorrect, singleTotal, multiCorrect, multiTotal, judgeCorrect, judgeTotal, usedTime, totalQuestions }, ...]
-        answerOverrides: {} // { questionId: 'ABCD' } - user-modified correct answers
+        answerOverrides: {}, // { questionId: 'ABCD' } - user-modified correct answers
+        analysisOverrides: {} // { questionId: 'analysis text' } - user-added explanations
     };
 }
 
@@ -35,6 +36,11 @@ function saveState() {
 // ===== ANSWER OVERRIDE HELPER =====
 function getAnswer(q) {
     return state.answerOverrides[q.id] || q.answer;
+}
+
+// ===== ANALYSIS OVERRIDE HELPER =====
+function getAnalysis(q) {
+    return state.analysisOverrides[q.id] || q.analysis || '';
 }
 
 // ===== PRACTICE STATE =====
@@ -1181,6 +1187,99 @@ function resetAnswer(qId) {
     showToast('🔙 已恢复原始答案');
 }
 
+// ===== EDIT ANALYSIS =====
+function editAnalysis(qId) {
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    if (!q) return;
+
+    const currentAnalysis = getAnalysis(q);
+    const hasUserAnalysis = state.analysisOverrides[q.id] !== undefined;
+    const hasOriginal = q.analysis && q.analysis.trim();
+
+    const modal = document.getElementById('editAnalysisModal');
+    modal.innerHTML = `
+        <div class="modal-content edit-analysis-modal">
+            <div class="modal-header">
+                <h2>📝 ${currentAnalysis ? '编辑解析' : '添加解析'}</h2>
+                <button class="modal-close" onclick="closeModal('editAnalysisModal')">✕</button>
+            </div>
+            <div class="edit-analysis-question">${q.question}</div>
+            <div class="edit-analysis-answer-info">
+                <span>正确答案：<strong>${getAnswer(q)}</strong></span>
+            </div>
+            <div class="edit-analysis-form">
+                <label class="edit-analysis-label">解析内容</label>
+                <textarea id="analysisTextarea" class="edit-analysis-textarea" rows="6" placeholder="输入你对这道题的解析、记忆方法或知识点笔记...">${escapeHtml(currentAnalysis)}</textarea>
+            </div>
+            <div class="edit-analysis-actions">
+                ${hasUserAnalysis ? '<button class="btn-reset-analysis" onclick="resetAnalysis(' + q.id + ')">🔙 ' + (hasOriginal ? '恢复原解析' : '删除解析') + '</button>' : ''}
+                <button class="btn-save-analysis" onclick="saveAnalysisEdit(${q.id})">💾 保存</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+
+    // Focus the textarea
+    setTimeout(() => {
+        const ta = document.getElementById('analysisTextarea');
+        if (ta) {
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+    }, 100);
+}
+
+function saveAnalysisEdit(qId) {
+    const textarea = document.getElementById('analysisTextarea');
+    if (!textarea) return;
+
+    const newAnalysis = textarea.value.trim();
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    if (!q) return;
+
+    if (!newAnalysis) {
+        // If empty, remove the override
+        delete state.analysisOverrides[qId];
+    } else if (newAnalysis === (q.analysis || '').trim()) {
+        // If same as original, remove override
+        delete state.analysisOverrides[qId];
+    } else {
+        state.analysisOverrides[qId] = newAnalysis;
+    }
+
+    saveState();
+    closeModal('editAnalysisModal');
+
+    // Re-render current question result if it matches
+    if (practiceQuestions[practiceIndex]?.id === qId && isAnswered) {
+        const q2 = practiceQuestions[practiceIndex];
+        const record = state.answered[q2.id];
+        if (record) {
+            showResult(q2, record.correct);
+        }
+    }
+
+    showToast(newAnalysis ? '✅ 解析已保存' : '🗑️ 解析已删除');
+}
+
+function resetAnalysis(qId) {
+    delete state.analysisOverrides[qId];
+    saveState();
+    closeModal('editAnalysisModal');
+
+    // Re-render current question result if it matches
+    if (practiceQuestions[practiceIndex]?.id === qId && isAnswered) {
+        const q2 = practiceQuestions[practiceIndex];
+        const record = state.answered[q2.id];
+        if (record) {
+            showResult(q2, record.correct);
+        }
+    }
+
+    const q = QUESTIONS.find(qq => qq.id === qId);
+    showToast(q && q.analysis ? '🔙 已恢复原始解析' : '🗑️ 解析已删除');
+}
+
 // ===== PRACTICE TIMER =====
 function togglePracticeTimer() {
     practiceTimerEnabled = !practiceTimerEnabled;
@@ -1324,8 +1423,23 @@ function showResult(q, isCorrect) {
     document.getElementById('resultAnswer').innerHTML = '正确答案：' + currentAnswer +
         (isOverridden ? ' <span class="answer-overridden-badge">已修改</span>' : '') +
         ' <button class="btn-edit-answer" onclick="editAnswer(' + q.id + ')" title="修改正确答案">✏️ 改答案</button>';
-    document.getElementById('resultAnalysis').textContent = q.analysis ? '解析：' + q.analysis : '';
-    document.getElementById('resultAnalysis').style.display = q.analysis ? 'block' : 'none';
+
+    // Show analysis with edit button
+    const analysis = getAnalysis(q);
+    const hasUserAnalysis = state.analysisOverrides[q.id] !== undefined;
+    const analysisEl = document.getElementById('resultAnalysis');
+    if (analysis) {
+        analysisEl.innerHTML = '<div class="analysis-content">' +
+            '<span class="analysis-label">解析：</span>' +
+            (hasUserAnalysis ? '<span class="analysis-user-badge">自定义</span>' : '') +
+            '<span class="analysis-text">' + escapeHtml(analysis) + '</span>' +
+            '</div>' +
+            '<button class="btn-edit-analysis" onclick="editAnalysis(' + q.id + ')" title="编辑解析">✏️ 编辑解析</button>';
+        analysisEl.style.display = 'block';
+    } else {
+        analysisEl.innerHTML = '<button class="btn-add-analysis" onclick="editAnalysis(' + q.id + ')">📝 添加解析</button>';
+        analysisEl.style.display = 'block';
+    }
 
     // Highlight options
     const answerKeys = new Set(currentAnswer.split(''));
@@ -1338,6 +1452,12 @@ function showResult(q, isCorrect) {
             el.classList.add('wrong');
         }
     });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function prevQuestion() {
@@ -2810,6 +2930,24 @@ function mergeState(imported) {
     // Take max streak
     if (imported.streak > state.streak) {
         state.streak = imported.streak;
+    }
+
+    // Merge answerOverrides: import overrides not in local
+    if (imported.answerOverrides) {
+        Object.keys(imported.answerOverrides).forEach(qid => {
+            if (!state.answerOverrides[qid]) {
+                state.answerOverrides[qid] = imported.answerOverrides[qid];
+            }
+        });
+    }
+
+    // Merge analysisOverrides: import analyses not in local
+    if (imported.analysisOverrides) {
+        Object.keys(imported.analysisOverrides).forEach(qid => {
+            if (!state.analysisOverrides[qid]) {
+                state.analysisOverrides[qid] = imported.analysisOverrides[qid];
+            }
+        });
     }
 }
 
