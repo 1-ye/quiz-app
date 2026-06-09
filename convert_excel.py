@@ -3,23 +3,43 @@ import openpyxl
 import json
 import os
 import re
+import sys
 from datetime import datetime, timedelta
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 desktop = os.path.join(os.environ['USERPROFILE'], 'Desktop')
 
-# Find the copy file (副本) with updated answers
-files = [f for f in os.listdir(desktop) if '商用密码' in f and f.endswith('.xlsx')]
-source_file = None
-for f in files:
-    if '20260310' in f:
-        source_file = f
-        break
-if not source_file:
-    source_file = files[0]
+# Use the new question bank file: 2026新题库0316（答案不确定标黄）.xlsx
+source_file = '2026新题库0316（答案不确定标黄）.xlsx'
+source_path = os.path.join(desktop, source_file)
+
+if not os.path.exists(source_path):
+    # Fallback: search for matching file
+    files = [f for f in os.listdir(desktop) if '2026' in f and '0316' in f and f.endswith('.xlsx') and not f.startswith('~') and not f.startswith('副本')]
+    if files:
+        source_file = files[0]
+        source_path = os.path.join(desktop, source_file)
+    else:
+        print("ERROR: Cannot find the question bank Excel file!")
+        exit(1)
 
 print(f"Loading: {source_file}")
-wb = openpyxl.load_workbook(os.path.join(desktop, source_file))
+wb = openpyxl.load_workbook(source_path)
 ws = wb.active
+
+# New file column layout:
+# Col 1: 知识点 (Knowledge category)
+# Col 2: 序号 (ID)
+# Col 3: 题型 (Question type)
+# Col 4: 题干 (Question text)
+# Col 5: 选项A
+# Col 6: 选项B
+# Col 7: 选项C
+# Col 8: 选项D
+# Col 9: 答案 (Answer)
+# Col 10: 标记 (Mark/Tag)
+# Data starts from row 2 (row 1 is header)
 
 def convert_cell_value(val):
     """Convert cell value to string, handling Excel date serial numbers."""
@@ -41,20 +61,52 @@ def convert_cell_value(val):
         return val.strftime('%Y年%m月%d日')
     return str(val)
 
+def is_yellow_fill(cell):
+    """Check if a cell has a yellow background (indicating uncertain answer)."""
+    try:
+        fill = cell.fill
+        if fill and fill.start_color and fill.start_color.rgb:
+            color = str(fill.start_color.rgb).upper()
+            # Common yellow colors in Excel
+            if color in ('FFFFFF00', 'FFFFC000', 'FFFFEB9C', 'FFFFCC00', 'FFFFD700'):
+                return True
+            # Check for yellow-ish colors (high R, high G, low B)
+            if len(color) == 8 and color != '00000000':
+                try:
+                    r = int(color[2:4], 16)
+                    g = int(color[4:6], 16)
+                    b = int(color[6:8], 16)
+                    if r > 200 and g > 180 and b < 100:
+                        return True
+                except ValueError:
+                    pass
+    except Exception:
+        pass
+    return False
+
 questions = []
-for r in range(3, ws.max_row + 1):
-    q_id = ws.cell(r, 1).value
-    q_type = ws.cell(r, 2).value
-    q_text = ws.cell(r, 3).value
-    opt_a = ws.cell(r, 4).value
-    opt_b = ws.cell(r, 5).value
-    opt_c = ws.cell(r, 6).value
-    opt_d = ws.cell(r, 7).value
-    answer = ws.cell(r, 8).value
-    analysis = ws.cell(r, 9).value
+uncertain_count = 0
+
+for r in range(2, ws.max_row + 1):
+    category = ws.cell(r, 1).value       # 知识点
+    q_id = ws.cell(r, 2).value           # 序号
+    q_type = ws.cell(r, 3).value         # 题型
+    q_text = ws.cell(r, 4).value         # 题干
+    opt_a = ws.cell(r, 5).value          # 选项A
+    opt_b = ws.cell(r, 6).value          # 选项B
+    opt_c = ws.cell(r, 7).value          # 选项C
+    opt_d = ws.cell(r, 8).value          # 选项D
+    answer = ws.cell(r, 9).value         # 答案
+    mark = ws.cell(r, 10).value          # 标记
 
     if not q_text:
         continue
+
+    # Check if answer is uncertain (yellow highlighted)
+    answer_cell = ws.cell(r, 9)
+    is_uncertain = is_yellow_fill(answer_cell)
+    if is_uncertain:
+        uncertain_count += 1
 
     # FIX: Use "is not None" instead of truthy check, so 0 values are preserved
     options = []
@@ -102,20 +154,34 @@ for r in range(3, ws.max_row + 1):
     # Convert question text - handle potential datetime in question
     q_text_str = convert_cell_value(q_text) if q_text else ""
     
-    # Convert analysis
-    analysis_str = ""
-    if analysis and str(analysis) != 'None':
-        analysis_str = convert_cell_value(analysis)
+    # Convert category
+    category_str = str(category).strip() if category else ""
+    
+    # Convert mark
+    mark_str = str(mark).strip() if mark and str(mark) != 'None' else ""
 
-    questions.append({
-        "id": int(q_id) if q_id else r - 2,
+    q_obj = {
+        "id": int(q_id) if q_id else r - 1,
         "type": type_code,
         "typeName": q_type_str if q_type_str else "",
         "question": q_text_str,
         "options": options,
         "answer": ans_clean,
-        "analysis": analysis_str
-    })
+        "analysis": "",  # No analysis column in new file
+        "category": category_str,
+    }
+    
+    # Add uncertain flag if answer is highlighted yellow
+    if is_uncertain:
+        q_obj["uncertain"] = True
+    
+    # Add mark if present
+    if mark_str:
+        q_obj["mark"] = mark_str
+
+    questions.append(q_obj)
+
+wb.close()
 
 # Write as JS
 with open(r'd:\code_test\quiz-app\questions.js', 'w', encoding='utf-8') as f:
@@ -129,6 +195,7 @@ judge_count = sum(1 for q in questions if q['type'] == 'judge')
 
 print(f"Converted {len(questions)} questions to questions.js")
 print(f"Types: single={single_count}, multi={multi_count}, judge={judge_count}")
+print(f"Uncertain answers (yellow): {uncertain_count}")
 
 # Verify: check questions with option A = "0"
 zero_a = [q for q in questions if any(o['key'] == 'A' and o['text'] == '0' for o in q['options'])]
@@ -150,3 +217,14 @@ for q in questions:
     if q['type'] == 'judge':
         judge_answers[q['answer']] = judge_answers.get(q['answer'], 0) + 1
 print(f"Judgment answers: {judge_answers}")
+
+# Show some categories
+categories = set(q.get('category', '') for q in questions if q.get('category'))
+print(f"\nTotal knowledge categories: {len(categories)}")
+
+# Show uncertain answer samples
+uncertain_qs = [q for q in questions if q.get('uncertain')]
+if uncertain_qs:
+    print(f"\nUncertain answer samples (first 5):")
+    for q in uncertain_qs[:5]:
+        print(f"  id={q['id']}, type={q['type']}, answer={q['answer']}, q={q['question'][:60]}")
