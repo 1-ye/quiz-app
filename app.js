@@ -2949,6 +2949,29 @@ function mergeState(imported) {
             }
         });
     }
+
+    // Merge favFolders: merge by folder id, combine items
+    if (imported.favFolders && imported.favFolders.length > 0) {
+        if (!state.favFolders) state.favFolders = [];
+        imported.favFolders.forEach(importedFolder => {
+            const existingFolder = state.favFolders.find(f => f.id === importedFolder.id);
+            if (existingFolder) {
+                // Folder exists: merge items (union)
+                importedFolder.items.forEach(itemId => {
+                    if (!existingFolder.items.includes(itemId)) {
+                        existingFolder.items.push(itemId);
+                    }
+                });
+                // Keep the imported folder name if local name is the same (prefer imported for renamed folders)
+                if (importedFolder.name && importedFolder.name !== existingFolder.name) {
+                    existingFolder.name = importedFolder.name;
+                }
+            } else {
+                // New folder: import it
+                state.favFolders.push({ ...importedFolder });
+            }
+        });
+    }
 }
 
 function showToast(message) {
